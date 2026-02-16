@@ -518,7 +518,6 @@ const CARD_RENDERERS = {
   recipe: (item) => `
     <div class="card card-recipe">
       <div class="card-label">🍳 Recipe of the Week <span class="card-time">${formatTime(item.timestamp)}</span></div>
-      ${item.image ? `<img src="${item.image}" alt="" loading="lazy" style="width:100%;border-radius:8px;margin-bottom:16px;">` : ''}
       <div class="card-body">${md2html(item.recipe || item.content || '')}</div>
       ${item.etymology ? `<div class="etymology" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--surface1);font-style:italic;"><strong>The Word:</strong> ${md2html(item.etymology)}</div>` : ''}
       ${item.source_url ? `<div style="margin-top:12px;font-size:13px;"><a href="${item.source_url}" target="_blank" style="color:var(--green);text-decoration:none;">Full recipe →</a></div>` : ''}

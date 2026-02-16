@@ -32,7 +32,7 @@ def get_wikipedia_random():
     return {
         'type': 'wikipedia',
         'title': data.get('title', ''),
-        'content': truncate_sentence(data.get('extract', ''), 350),
+        'content': truncate_sentence(data.get('extract', ''), 250),
         'url': data.get('content_urls', {}).get('desktop', {}).get('page', ''),
     }
 
@@ -60,7 +60,7 @@ def get_arxiv_random():
     return {
         'type': 'arxiv',
         'title': title,
-        'content': summary,
+        'content': truncate_sentence(summary, 250),
     }
 
 def get_poem_fragment():
@@ -79,16 +79,13 @@ Just the poem and attribution, nothing else."""
 
 def get_historical_fact():
     """Get an interesting historical fact via Claude."""
-    prompt = """Give me one obscure, specific historical fact — something that happened on a particular 
-date involving a particular person or event. Not well-known. Make it genuinely surprising.
-2-3 sentences max. Include the year. Just the fact, no preamble, no meta-commentary, no "let me try again." 
-One fact, stated cleanly."""
+    prompt = """One obscure historical fact. 2-3 sentences. Include the year. No preamble. No self-correction. No "let me do better." No "actually." Just state the fact."""
     
-    result = ask_claude(prompt, max_tokens=150, temperature=0.95)
+    result = ask_claude(prompt, max_tokens=120, temperature=0.95)
     return {
         'type': 'history',
         'title': 'Historical Fact',
-        'content': result.strip(),
+        'content': truncate_sentence(result.strip(), 250),
     }
 
 SOURCES = [

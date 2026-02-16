@@ -1,7 +1,27 @@
+# Generated content
 feed/
-node_modules/
-.env
-*.state.json
+
+# Runtime state
+generators/.*-state.json
 generators/.*.json
+
+# Large corpus data (download separately)
 generators/data/corpus-*.txt
+
+# Dependencies
+node_modules/
+
+# Environment / secrets
+.env
+
+# Python
 __pycache__/
+*.pyc
+
+# OS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~

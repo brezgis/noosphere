@@ -7,7 +7,14 @@ import requests, random, os
 from dotenv import load_dotenv
 from utils import today, write_feed, feed_exists
 
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '..', '.env'), override=True)
+# Load .env from project root or parent directories
+for env_path in [
+    os.path.join(os.path.dirname(__file__), '..', '.env'),
+    os.path.join(os.path.dirname(__file__), '..', '..', '..', '.env'),
+]:
+    if os.path.exists(env_path):
+        load_dotenv(env_path, override=True)
+        break
 
 UNSPLASH_KEY = os.environ.get('UNSPLASH_ACCESS_KEY', '')
 

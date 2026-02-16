@@ -18,7 +18,7 @@ app.use(express.static(PUBLIC_DIR));
 // Optional query params: ?limit=20&before=2026-02-16T12:00:00Z&type=weather
 app.get('/api/feed', (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 200;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
     const beforeDate = req.query.before ? new Date(req.query.before) : null;
     const typeFilter = req.query.type || null;
 
@@ -36,7 +36,7 @@ app.get('/api/feed', (req, res) => {
         const entries = Array.isArray(data) ? data : [data];
         items.push(...entries);
       } catch (e) {
-        // Skip malformed files
+        console.warn(`Malformed feed file: ${file}`, e.message);
       }
     }
 
@@ -78,6 +78,10 @@ app.get('/api/types', (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Noosphere running on http://localhost:${PORT}`);
 });
+
+// Graceful shutdown
+process.on('SIGTERM', () => server.close(() => process.exit(0)));
+process.on('SIGINT', () => server.close(() => process.exit(0)));

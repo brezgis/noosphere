@@ -4,7 +4,7 @@ A personal content feed — your own private social media timeline, populated by
 
 Named after [Vernadsky's concept](https://en.wikipedia.org/wiki/Noosphere) of the sphere of human thought.
 
-![Noosphere screenshot](demo-top.png)
+![Noosphere screenshot](screenshot.png)
 
 ## What It Is
 

@@ -45,6 +45,16 @@ All content is sourced from real, open data:
 
 LLM commentary is generated via any OpenAI-compatible API endpoint (Claude, GPT, local models, etc.).
 
+## Discord Cross-Posting
+
+Noosphere can automatically cross-post feed items to a Discord channel. When a generator writes a new card, `utils.py` formats it for Discord (with type-specific emoji labels and markdown) and posts via the Discord Bot API.
+
+To enable:
+1. Set `NOOSPHERE_DISCORD_CHANNEL` in your `.env` to your target channel ID
+2. Configure a Discord bot token accessible to the generators (via OpenClaw config or `DISCORD_BOT_TOKEN` env var)
+
+If no Discord credentials are found, cross-posting is silently skipped — feed generation is never blocked.
+
 ## Architecture
 
 ```

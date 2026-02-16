@@ -511,9 +511,8 @@ const CARD_RENDERERS = {
     <div class="card card-typeface">
       <div class="card-label">◈ Typeface of the Week <span class="card-time">${formatTime(item.timestamp)}</span></div>
       <div class="card-title">${item.font_name || item.title || ''}</div>
-      <div class="meta-line">${item.designer || ''} · ${item.year || ''} · ${item.category || ''}</div>
       <div class="card-body">${md2html(item.content || '')}</div>
-      <div class="meta-line"><a href="https://en.wikipedia.org/wiki/${encodeURIComponent((item.font_name||'').replace(/ /g,'_'))}_(typeface)" target="_blank" style="color:var(--mauve);text-decoration:none;opacity:0.7;">Read more →</a></div>
+      ${item.wikipedia_url ? `<div class="meta-line"><a href="${item.wikipedia_url}" target="_blank" style="color:var(--mauve);text-decoration:none;opacity:0.7;">Read more →</a></div>` : ''}
     </div>`,
 
   recipe: (item) => `

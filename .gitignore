@@ -1,0 +1,7 @@
+feed/
+node_modules/
+.env
+*.state.json
+generators/.*.json
+generators/data/corpus-*.txt
+__pycache__/

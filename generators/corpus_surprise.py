@@ -90,7 +90,8 @@ this sentence interesting from a morphological, syntactic, pragmatic, or socioli
 What would a corpus linguist or computational linguist notice? What's revealing about the 
 construction, register, word order, or presuppositions?
 
-If the sentence is not in English, briefly note what it says before your linguistic analysis.
+If the sentence is not in English, start with a translation on its own line, then leave a blank line, 
+then write the linguistic analysis. Use <br><br> to separate the translation from the analysis.
 
 Keep it under 80 words. Be precise and specific — focus on actual linguistic phenomena."""
 

@@ -2,6 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1e1e2e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -506,14 +513,16 @@ const CARD_RENDERERS = {
       <div class="card-title">${item.font_name || item.title || ''}</div>
       <div class="meta-line">${item.designer || ''} · ${item.year || ''} · ${item.category || ''}</div>
       <div class="card-body">${md2html(item.content || '')}</div>
-      ${item.specimen_url ? `<div class="meta-line"><a href="${item.specimen_url}" target="_blank" style="color:var(--mauve);text-decoration:none;">View specimen →</a></div>` : ''}
+      <div class="meta-line"><a href="https://en.wikipedia.org/wiki/${encodeURIComponent((item.font_name||'').replace(/ /g,'_'))}_(typeface)" target="_blank" style="color:var(--mauve);text-decoration:none;opacity:0.7;">Read more →</a></div>
     </div>`,
 
   recipe: (item) => `
     <div class="card card-recipe">
       <div class="card-label">🍳 Recipe of the Week <span class="card-time">${formatTime(item.timestamp)}</span></div>
+      ${item.image ? `<img src="${item.image}" alt="" loading="lazy" style="width:100%;border-radius:8px;margin-bottom:16px;">` : ''}
       <div class="card-body">${md2html(item.recipe || item.content || '')}</div>
       ${item.etymology ? `<div class="etymology" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--surface1);font-style:italic;"><strong>The Word:</strong> ${md2html(item.etymology)}</div>` : ''}
+      ${item.source_url ? `<div style="margin-top:12px;font-size:13px;"><a href="${item.source_url}" target="_blank" style="color:var(--green);text-decoration:none;">Full recipe →</a></div>` : ''}
     </div>`,
 
   entropy_garden: (item) => {
@@ -947,6 +956,11 @@ loadFeed();
 
 // Refresh every 5 minutes
 setInterval(loadFeed, 5 * 60 * 1000);
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
 </script>
 
 </body>

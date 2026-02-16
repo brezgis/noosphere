@@ -88,16 +88,7 @@ Use HTML tags (<em>, <strong>) not markdown. Keep commentary under 120 words."""
 
     content = ask_claude(prompt, system=system, max_tokens=450, temperature=0.85)
 
-    # Only link Google Fonts for fonts actually on the platform
-    GOOGLE_FONTS = {
-        'Courier', 'Fira Code', 'JetBrains Mono', 'Inter', 'IBM Plex', 'Source Code Pro',
-        'Iosevka', 'EB Garamond', 'Playfair Display', 'Roboto', 'Noto Sans', 'Noto Serif',
-        'DM Mono', 'Space Mono', 'Inconsolata',
-    }
     specimen_url = ''
-    if tf['name'] in GOOGLE_FONTS:
-        gf_name = tf['name'].replace(' ', '+')
-        specimen_url = f"https://fonts.google.com/specimen/{gf_name}"
 
     write_feed(name, {
         "type": "typeface",

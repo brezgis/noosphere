@@ -3,7 +3,7 @@
 
 Non-interactive. Weekly card with a real recipe + the etymological story of a key ingredient.
 """
-import json, os, random
+import json, os, random, requests
 from datetime import datetime
 from utils import ask_claude, today, write_feed, feed_exists
 
@@ -62,6 +62,33 @@ def current_season():
     if month in (6, 7, 8): return "summer"
     return "autumn"
 
+def fetch_real_recipe():
+    """Fetch a random real recipe from TheMealDB."""
+    try:
+        resp = requests.get("https://www.themealdb.com/api/json/v1/1/random.php", timeout=10)
+        resp.raise_for_status()
+        meal = resp.json()['meals'][0]
+        
+        ingredients = []
+        for i in range(1, 21):
+            ing = (meal.get(f'strIngredient{i}') or '').strip()
+            measure = (meal.get(f'strMeasure{i}') or '').strip()
+            if ing:
+                ingredients.append(f"{measure} {ing}".strip())
+        
+        return {
+            'name': meal['strMeal'],
+            'category': meal.get('strCategory', ''),
+            'area': meal.get('strArea', ''),
+            'instructions': meal['strInstructions'],
+            'ingredients': ingredients,
+            'image': meal.get('strMealThumb', ''),
+            'source': meal.get('strSource', ''),
+        }
+    except Exception as e:
+        print(f"Failed to fetch recipe: {e}")
+        return None
+
 def generate():
     name = f"{today()}-recipe"
     if feed_exists(name):
@@ -70,44 +97,67 @@ def generate():
 
     season = current_season()
     ingredient = random.choice(INGREDIENTS[season])
+    
+    # Try to get a real recipe first
+    real_recipe = fetch_real_recipe()
+    
+    if real_recipe:
+        # Have Claude rewrite the real recipe as a compelling card + add etymology of a key ingredient
+        ing_list = ', '.join(real_recipe['ingredients'][:10])
+        prompt = f"""Here's a real recipe. Rewrite it as a compelling recipe card:
 
-    prompt = f"""Create a simple, satisfying recipe card featuring {ingredient['name']} as a key ingredient.
+Name: {real_recipe['name']}
+Cuisine: {real_recipe['area']}
+Ingredients: {ing_list}
+Instructions (abbreviated): {real_recipe['instructions'][:400]}
+
+Rewrite as:
+PART 1 - THE RECIPE:
+The recipe name as a bold title, then 3-4 sentences that make someone want to cook this — 
+describe the flavors, textures, what makes it special. Then list key ingredients with quantities 
+(simplified for 2 people). Keep it achievable for a grad student. Use HTML tags.
+
+PART 2 - Pick the most etymologically interesting ingredient from this recipe and write 
+2-3 sentences about where the word comes from. What linguistic journey did it take?
+
+Separate parts with [ETYMOLOGY]. Use HTML tags (<em>, <strong>) not markdown."""
+    else:
+        # Fallback: generate from seasonal ingredient
+        prompt = f"""Create a simple, satisfying recipe card featuring {ingredient['name']} as a key ingredient.
 
 Season: {season}
 Etymology hint: {ingredient['hint']}
 
-Format your response in two parts:
-
 PART 1 - THE RECIPE:
-A recipe title, then 2-3 sentences describing the dish (not full instructions — 
-more like a compelling description that makes someone want to cook it). 
-Include rough quantities for 2 people. Keep it achievable for a grad student 
-with basic kitchen skills and limited time.
+A recipe title, then 2-3 sentences describing the dish. Include rough quantities for 2 people.
 
 PART 2 - THE WORD:
-The etymological story of "{ingredient['name']}" in 2-3 sentences. 
-Where does the word come from? What linguistic journey did it take? 
-What does the etymology reveal about the ingredient's history?
+The etymological story of "{ingredient['name']}" in 2-3 sentences.
 
 Separate the two parts with [ETYMOLOGY]. Use HTML tags (<em>, <strong>) not markdown."""
 
     system = "You are a home cook and amateur etymologist. Your recipes are unfussy but interesting — the kind of food a curious person makes on a Wednesday night. Your etymology is precise and surprising."
 
-    result = ask_claude(prompt, system=system, max_tokens=500, temperature=0.85)
+    result = ask_claude(prompt, system=system, max_tokens=600, temperature=0.85)
 
-    # Split on the marker
     parts = result.split('[ETYMOLOGY]')
     recipe_text = parts[0].strip() if len(parts) > 0 else result
     etymology = parts[1].strip() if len(parts) > 1 else ''
 
-    write_feed(name, {
+    feed_data = {
         "type": "recipe",
         "timestamp": f"{today()}T17:00:00",
-        "ingredient": ingredient['name'],
+        "ingredient": real_recipe['name'] if real_recipe else ingredient['name'],
         "season": season,
         "recipe": recipe_text,
         "etymology": etymology,
-    })
+    }
+    if real_recipe and real_recipe.get('image'):
+        feed_data['image'] = real_recipe['image']
+    if real_recipe and real_recipe.get('source'):
+        feed_data['source_url'] = real_recipe['source']
+
+    write_feed(name, feed_data)
 
 if __name__ == '__main__':
     generate()

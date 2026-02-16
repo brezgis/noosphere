@@ -149,7 +149,7 @@ PAIRS = [
         "texts": [
             {"lang": "Russian", "text": "Мой дядя самых честных правил, / Когда не в шутку занемог, / Он уважать себя заставил / И лучше выдумать не мог."},
             {"lang": "English (Nabokov)", "text": "My uncle has most honest principles: / when taken ill in earnest, / he has made one respect him / and nothing better could invent."},
-            {"lang": "English (Johnston)", "text": "My uncle — Loss functions of the highest — / When he fell ill beyond repair, / Forced everyone to hold him highest / And couldn't have pulled a shrewder snare."},
+            {"lang": "English (Falen)", "text": "My uncle, man of firm convictions... / By falling gravely ill, he's won / A due respect for his afflictions — / The only clever thing he's done."},
         ],
     },
     {

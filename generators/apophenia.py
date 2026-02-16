@@ -6,6 +6,20 @@ Pulls from Wikipedia random article API + arxiv API + Poetry Foundation + misc s
 import requests, random, json, re
 from utils import ask_claude, today, write_feed, feed_exists
 
+def truncate_sentence(text, max_chars=350):
+    """Truncate text at the last complete sentence within max_chars."""
+    if len(text) <= max_chars:
+        return text
+    # Find last sentence-ending punctuation before the limit
+    truncated = text[:max_chars]
+    for end in ['. ', '! ', '? ']:
+        idx = truncated.rfind(end)
+        if idx > 0:
+            return truncated[:idx + 1]
+    # Fallback: cut at last space and add ellipsis
+    idx = truncated.rfind(' ')
+    return truncated[:idx] + '…' if idx > 0 else truncated + '…'
+
 def get_wikipedia_random():
     """Get a random Wikipedia article summary."""
     resp = requests.get(
@@ -18,7 +32,7 @@ def get_wikipedia_random():
     return {
         'type': 'wikipedia',
         'title': data.get('title', ''),
-        'content': data.get('extract', '')[:300],
+        'content': truncate_sentence(data.get('extract', ''), 350),
         'url': data.get('content_urls', {}).get('desktop', {}).get('page', ''),
     }
 
@@ -67,7 +81,8 @@ def get_historical_fact():
     """Get an interesting historical fact via Claude."""
     prompt = """Give me one obscure, specific historical fact — something that happened on a particular 
 date involving a particular person or event. Not well-known. Make it genuinely surprising.
-2-3 sentences max. Include the year. Just the fact, no commentary."""
+2-3 sentences max. Include the year. Just the fact, no preamble, no meta-commentary, no "let me try again." 
+One fact, stated cleanly."""
     
     result = ask_claude(prompt, max_tokens=150, temperature=0.95)
     return {

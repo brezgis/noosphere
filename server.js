@@ -43,6 +43,15 @@ app.get('/api/feed', (req, res) => {
     // Sort by timestamp, newest first
     items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
+    // Hide future items — generators pre-create content with scheduled timestamps
+    // Timestamps are naive (no timezone), interpreted as America/New_York
+    const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    items = items.filter(i => {
+      // Parse naive timestamp as local (no TZ = ET)
+      const d = new Date(i.timestamp);
+      return d <= nowET;
+    });
+
     // Apply filters
     if (beforeDate) {
       items = items.filter(i => new Date(i.timestamp) < beforeDate);

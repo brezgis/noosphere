@@ -212,12 +212,34 @@ def generate_playlist():
     print(f"  {theme['description']}")
     print(f"  {len(theme['additions'])} additional tracks suggested")
 
-    # Resolve all tracks on Spotify
+    # Resolve all tracks on Spotify, filtering out liked songs
     sp = get_spotify()
+
+    print("  Loading liked songs...")
+    liked_keys = set()
+    offset = 0
+    while True:
+        try:
+            results = sp.current_user_saved_tracks(limit=50, offset=offset)
+            if not results['items']:
+                break
+            for item in results['items']:
+                t = item['track']
+                artist = t['artists'][0]['name'].lower().strip()
+                track = t['name'].lower().strip()
+                liked_keys.add(f"{artist}::{track}")
+            offset += 50
+            if offset >= results['total']:
+                break
+        except:
+            break
+    print(f"  {len(liked_keys)} liked songs loaded")
+
     track_uris = []
     track_list = []  # For the card
+    skipped = 0
 
-    # First: the month's daily recs
+    # First: the month's daily recs (already filtered at generation time)
     for rec in recs:
         uri, url = find_track_uri(sp, rec['title'], rec['artist'])
         if uri:
@@ -231,8 +253,13 @@ def generate_playlist():
         else:
             print(f"  ⚠ Not found: {rec['title']} by {rec['artist']}")
 
-    # Then: Claude's additions
+    # Then: Claude's additions (skip if already liked)
     for add in theme['additions']:
+        key = f"{add['artist'].lower().strip()}::{add['track'].lower().strip()}"
+        if key in liked_keys:
+            print(f"  ⏭ Already liked: {add['track']} by {add['artist']}")
+            skipped += 1
+            continue
         uri, url = find_track_uri(sp, add['track'], add['artist'])
         if uri:
             track_uris.append(uri)
@@ -244,6 +271,9 @@ def generate_playlist():
             })
         else:
             print(f"  ⚠ Not found: {add['track']} by {add['artist']}")
+
+    if skipped:
+        print(f"  Skipped {skipped} tracks already in liked songs")
 
     # Deduplicate by URI
     seen = set()

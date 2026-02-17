@@ -66,6 +66,27 @@ def get_top_context(sp):
             context[term] = []
     return context
 
+def get_liked_track_keys(sp):
+    """Fetch all liked songs and return a set of 'artist::track' keys (lowercased) for matching."""
+    keys = set()
+    offset = 0
+    while True:
+        try:
+            results = sp.current_user_saved_tracks(limit=50, offset=offset)
+            if not results['items']:
+                break
+            for item in results['items']:
+                t = item['track']
+                artist = t['artists'][0]['name'].lower().strip()
+                track = t['name'].lower().strip()
+                keys.add(f"{artist}::{track}")
+            offset += 50
+            if offset >= results['total']:
+                break
+        except:
+            break
+    return keys
+
 def find_spotify_url(sp, track_name, artist_name):
     """Search Spotify for a track and return its URL."""
     try:
@@ -165,17 +186,38 @@ ALBUM: [album name]
 YEAR: [release year]
 WHY: [2-3 sentences. Be specific about why SHE would love this. Connect to her taste. Write like a friend texting "okay STOP and listen to this."]"""
 
-    response = ask_claude(prompt, max_tokens=300, temperature=1.0)
+    # Load liked songs to filter against
+    print("  Loading liked songs...")
+    liked_keys = get_liked_track_keys(sp)
+    print(f"  {len(liked_keys)} liked songs loaded")
 
-    # Parse response
-    rec = {}
-    for line in response.strip().split('\n'):
-        for key in ['ARTIST', 'TRACK', 'ALBUM', 'YEAR', 'WHY']:
-            if line.startswith(f'{key}:'):
-                rec[key.lower()] = line.split(':', 1)[1].strip()
+    # Try up to 3 times to find a song not in liked songs
+    rec = None
+    for attempt in range(3):
+        response = ask_claude(prompt, max_tokens=300, temperature=1.0)
 
-    if not rec.get('track') or not rec.get('artist'):
-        print(f"Failed to parse recommendation: {response[:200]}")
+        # Parse response
+        candidate = {}
+        for line in response.strip().split('\n'):
+            for key in ['ARTIST', 'TRACK', 'ALBUM', 'YEAR', 'WHY']:
+                if line.startswith(f'{key}:'):
+                    candidate[key.lower()] = line.split(':', 1)[1].strip()
+
+        if not candidate.get('track') or not candidate.get('artist'):
+            print(f"  Attempt {attempt+1}: failed to parse recommendation")
+            continue
+
+        # Check if it's in liked songs
+        key = f"{candidate['artist'].lower().strip()}::{candidate['track'].lower().strip()}"
+        if key in liked_keys:
+            print(f"  Attempt {attempt+1}: {candidate['track']} by {candidate['artist']} — already liked, retrying")
+            continue
+
+        rec = candidate
+        break
+
+    if not rec:
+        print("Failed to find a recommendation not in liked songs after 3 attempts")
         return
 
     # Find Spotify URL

@@ -646,7 +646,7 @@ const CARD_RENDERERS = {
           ${item.tracks.slice(0, 15).map(t => `
             <li>
               ${t.spotify_url
-                ? `<a href="${t.spotify_url}" target="_blank" style="text-decoration:none"><span class="track-name">${t.track}</span> — <span class="track-artist">${t.artist}</span></a>`
+                ? `<a href="${t.spotify_url}" target="_blank" style="text-decoration:none;color:inherit"><span class="track-name">${t.track}</span> <span style="color:var(--dim)">—</span> <span class="track-artist">${t.artist}</span></a>`
                 : `<span class="track-name">${t.track}</span> — <span class="track-artist">${t.artist}</span>`}
               ${t.source === 'daily_rec' ? '<span class="track-badge">rec</span>' : ''}
             </li>
@@ -700,6 +700,16 @@ async function loadFeed() {
   }
 }
 
+function renderCard(item) {
+  const renderer = CARD_RENDERERS[item.type];
+  if (renderer) return renderer(item);
+  return `
+    <div class="card">
+      <div class="card-label">${item.type || 'unknown'} <span class="card-time">${formatTime(item.timestamp)}</span></div>
+      <div class="card-body">${item.content || JSON.stringify(item)}</div>
+    </div>`;
+}
+
 function renderFeed(items) {
   const container = document.getElementById('cards');
 
@@ -709,28 +719,41 @@ function renderFeed(items) {
   }
 
   let html = '';
-  const today = groupByTimeOfDay(items);
-  const sections = [
-    ['Morning', today.morning],
-    ['Midday', today.midday],
-    ['Afternoon', today.afternoon],
-    ['Evening', today.evening]
-  ];
+  const todayStr = new Date().toLocaleDateString('en-US');
 
-  for (const [label, sectionItems] of sections) {
-    if (sectionItems.length === 0) continue;
-    html += `<div class="time-separator">${label}</div>`;
-    for (const item of sectionItems) {
-      const renderer = CARD_RENDERERS[item.type];
-      if (renderer) {
-        html += renderer(item);
-      } else {
-        // Fallback: generic card
-        html += `
-          <div class="card">
-            <div class="card-label">${item.type || 'unknown'} <span class="card-time">${formatTime(item.timestamp)}</span></div>
-            <div class="card-body">${item.content || JSON.stringify(item)}</div>
-          </div>`;
+  const todayItems = [];
+  const olderItems = [];
+  for (const item of items) {
+    if (new Date(item.timestamp).toLocaleDateString('en-US') === todayStr) {
+      todayItems.push(item);
+    } else {
+      olderItems.push(item);
+    }
+  }
+
+  // Today: newest first, like a timeline
+  if (todayItems.length > 0) {
+    html += `<div class="time-separator">Today</div>`;
+    todayItems.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    for (const item of todayItems) {
+      html += renderCard(item);
+    }
+  }
+
+  // Older days: group by day, then time-of-day within each day
+  const days = groupByDay(olderItems);
+  const sortedDays = Object.keys(days).sort((a, b) => new Date(b) - new Date(a));
+  for (const dayStr of sortedDays) {
+    html += `<div class="time-separator">${formatDate(new Date(dayStr))}</div>`;
+    const dayItems = days[dayStr];
+    const grouped = groupByTimeOfDay(dayItems);
+    for (const [label, sectionItems] of [['Morning', grouped.morning], ['Midday', grouped.midday], ['Afternoon', grouped.afternoon], ['Evening', grouped.evening]]) {
+      if (sectionItems.length === 0) continue;
+      if (dayItems.length > 4) {
+        html += `<div style="color:var(--dim);font-size:12px;text-align:center;padding:8px 0;letter-spacing:2px;text-transform:uppercase">${label}</div>`;
+      }
+      for (const item of sectionItems) {
+        html += renderCard(item);
       }
     }
   }

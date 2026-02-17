@@ -26,6 +26,7 @@ run corpus_surprise corpus_surprise.py
 run entropy_garden entropy_garden.py
 run git_log git_log.py
 run midnight_postcard midnight_postcard.py
+run music_rec music_rec.py
 
 # 3x/week (Mon, Wed, Fri)
 run untranslatable untranslatable.py
@@ -40,6 +41,9 @@ run typeface typeface.py
 run recipe recipe.py
 run dead_medium dead_medium.py
 run annotation annotation.py
+
+# Monthly (1st of month)
+run monthly_playlist monthly_playlist.py
 
 # === Low-stock monitor ===
 python3 - <<'PYEOF'

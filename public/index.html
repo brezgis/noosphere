@@ -297,6 +297,62 @@
   .card-corpus .corpus-tag.year { color: var(--peach); }
   .card-corpus .corpus-tag.source { color: var(--teal); }
 
+  /* Music Rec */
+  .card-music-rec { border-top: 3px solid var(--flamingo); }
+  .card-music-rec .card-label { color: var(--flamingo); }
+  .card-music-rec .music-rec-title {
+    font-family: 'EB Garamond', serif; font-size: 22px; color: var(--text);
+    font-weight: 600; margin-bottom: 4px;
+  }
+  .card-music-rec .music-rec-artist {
+    font-size: 16px; color: var(--flamingo); margin-bottom: 4px;
+  }
+  .card-music-rec .music-rec-album {
+    font-size: 13px; color: var(--dim); margin-bottom: 14px;
+  }
+  .card-music-rec .music-rec-link {
+    display: inline-block; margin-top: 12px; padding: 6px 14px;
+    background: var(--surface); color: var(--flamingo); border-radius: 6px;
+    text-decoration: none; font-size: 13px; transition: background 0.2s;
+  }
+  .card-music-rec .music-rec-link:hover { background: var(--border); }
+
+  /* Monthly Playlist */
+  .card-monthly-playlist { border-top: 3px solid var(--mauve); }
+  .card-monthly-playlist .card-label { color: var(--mauve); }
+  .card-monthly-playlist .playlist-title {
+    font-family: 'EB Garamond', serif; font-size: 24px; color: var(--text);
+    font-weight: 600; margin-bottom: 6px;
+  }
+  .card-monthly-playlist .playlist-desc {
+    font-size: 15px; color: var(--subtext); margin-bottom: 16px;
+    line-height: 1.6; font-style: italic;
+  }
+  .card-monthly-playlist .playlist-stats {
+    font-size: 13px; color: var(--dim); margin-bottom: 14px;
+  }
+  .card-monthly-playlist .playlist-tracks {
+    list-style: none; padding: 0; margin: 0 0 16px 0;
+  }
+  .card-monthly-playlist .playlist-tracks li {
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+    font-size: 14px; color: var(--subtext);
+  }
+  .card-monthly-playlist .playlist-tracks li:last-child { border-bottom: none; }
+  .card-monthly-playlist .playlist-tracks .track-name { color: var(--text); }
+  .card-monthly-playlist .playlist-tracks .track-artist { color: var(--mauve); }
+  .card-monthly-playlist .playlist-tracks .track-badge {
+    font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    background: var(--surface); color: var(--dim); margin-left: 6px;
+  }
+  .card-monthly-playlist .playlist-link {
+    display: inline-block; margin-top: 8px; padding: 8px 18px;
+    background: var(--surface); color: var(--mauve); border-radius: 6px;
+    text-decoration: none; font-size: 14px; font-weight: 600;
+    transition: background 0.2s;
+  }
+  .card-monthly-playlist .playlist-link:hover { background: var(--border); }
+
   /* Time separators */
   .time-separator {
     text-align: center; padding: 28px 0; font-size: 15px;
@@ -363,6 +419,9 @@
   <div class="sidebar-item" onclick="filterFeed('annotation')">
     <span class="sidebar-dot" style="background: var(--yellow)"></span> Annotation
   </div>
+  <div class="sidebar-item" onclick="filterFeed('music_rec')">
+    <span class="sidebar-dot" style="background: var(--flamingo)"></span> Music Rec
+  </div>
 
   <div class="sidebar-section">Weekly</div>
   <div class="sidebar-item" onclick="filterFeed('the_diff')">
@@ -376,6 +435,11 @@
   </div>
   <div class="sidebar-item" onclick="filterFeed('recipe')">
     <span class="sidebar-dot" style="background: var(--green)"></span> Recipe
+  </div>
+
+  <div class="sidebar-section">Monthly</div>
+  <div class="sidebar-item" onclick="filterFeed('monthly_playlist')">
+    <span class="sidebar-dot" style="background: var(--mauve)"></span> Playlist
   </div>
 
   <div class="sidebar-section">Night</div>
@@ -559,6 +623,38 @@ const CARD_RENDERERS = {
         ${item.genre ? `<span class="corpus-tag">${item.genre}</span>` : ''}
       </div>
       ${item.context ? `<div class="card-body">${md2html(item.context)}</div>` : ''}
+    </div>`,
+
+  music_rec: (item) => `
+    <div class="card card-music-rec">
+      <div class="card-label">🎵 You Should Hear This <span class="card-time">${formatTime(item.timestamp)}</span></div>
+      <div class="music-rec-title">${item.title || ''}</div>
+      <div class="music-rec-artist">${item.artist || ''}</div>
+      ${item.album ? `<div class="music-rec-album"><em>${item.album}</em>${item.year ? ` (${item.year})` : ''}</div>` : ''}
+      <div class="card-body">${md2html(item.body || '')}</div>
+      ${item.spotify_url ? `<a href="${item.spotify_url}" target="_blank" class="music-rec-link">Open in Spotify →</a>` : ''}
+    </div>`,
+
+  monthly_playlist: (item) => `
+    <div class="card card-monthly-playlist">
+      <div class="card-label">📻 Monthly Playlist — ${item.month || ''} ${item.year || ''} <span class="card-time">${formatTime(item.timestamp)}</span></div>
+      <div class="playlist-title">${item.title || ''}</div>
+      <div class="playlist-desc">${item.description || ''}</div>
+      <div class="playlist-stats">${item.track_count || 0} tracks · ${item.daily_rec_count || 0} from daily recs · ${item.curated_count || 0} curated</div>
+      ${item.tracks && item.tracks.length ? `
+        <ul class="playlist-tracks">
+          ${item.tracks.slice(0, 15).map(t => `
+            <li>
+              ${t.spotify_url
+                ? `<a href="${t.spotify_url}" target="_blank" style="text-decoration:none"><span class="track-name">${t.track}</span> — <span class="track-artist">${t.artist}</span></a>`
+                : `<span class="track-name">${t.track}</span> — <span class="track-artist">${t.artist}</span>`}
+              ${t.source === 'daily_rec' ? '<span class="track-badge">rec</span>' : ''}
+            </li>
+          `).join('')}
+          ${item.tracks.length > 15 ? `<li style="color: var(--dim)">+ ${item.tracks.length - 15} more</li>` : ''}
+        </ul>
+      ` : ''}
+      ${item.spotify_url ? `<a href="${item.spotify_url}" target="_blank" class="playlist-link">Open Playlist in Spotify →</a>` : ''}
     </div>`,
 };
 

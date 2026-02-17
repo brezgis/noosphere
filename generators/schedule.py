@@ -37,6 +37,13 @@ SCHEDULE = {
 
     # Weekly Sunday
     'annotation': [6],
+
+    # Daily music recommendation
+    'music_rec': 'daily',
+}
+
+    # Monthly (1st of month)
+    'monthly_playlist': 'monthly_1st',
 }
 
 def should_run(generator_name):
@@ -44,5 +51,7 @@ def should_run(generator_name):
     sched = SCHEDULE.get(generator_name, 'daily')
     if sched == 'daily':
         return True
+    if sched == 'monthly_1st':
+        return date.today().day == 1
     today_dow = date.today().weekday()  # 0=Monday
     return today_dow in sched

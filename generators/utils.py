@@ -64,7 +64,7 @@ def now_iso():
     """Return current time as ISO string."""
     return datetime.datetime.now().isoformat(timespec='seconds')
 
-NOOSPHERE_DISCORD_CHANNEL = os.environ.get('NOOSPHERE_DISCORD_CHANNEL', '1473064914074734793')
+NOOSPHERE_DISCORD_CHANNEL = os.environ.get('NOOSPHERE_DISCORD_CHANNEL', '')
 
 def _post_to_discord(data):
     """Post a feed item to the Noosphere Discord channel via OpenClaw gateway."""

@@ -10,10 +10,6 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#1e1e2e">
-<link rel="manifest" href="/manifest.json">
 <title>Noosphere</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap');
@@ -35,6 +31,7 @@
     --red: #f38ba8;
     --teal: #94e2d5;
     --lavender: #b4befe;
+    --flamingo: #f2cdcd;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -857,7 +854,29 @@ function initEntropyGarden(id, algo, seed) {
   const rng = () => { s = (s * 1664525 + 1013904223) & 0xFFFFFFFF; return (s >>> 0) / 0xFFFFFFFF; };
 
   const generators = { dla, flow_field, cellular, game_of_life };
-  (generators[algo] || generators.dla)(ctx, W, H, rng, canvas);
+  const runGen = generators[algo] || generators.dla;
+
+  // Track if we've already set up a re-entry observer
+  if (canvas._reentryObserver) canvas._reentryObserver.disconnect();
+  const reObs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting && canvas._hasLeftView) {
+        // Reset and replay
+        canvas._hasLeftView = false;
+        s = seed;  // reset RNG
+        ctx.fillStyle = GARDEN_COLORS.bg;
+        ctx.fillRect(0, 0, W, H);
+        if (canvas._animFrame) cancelAnimationFrame(canvas._animFrame);
+        runGen(ctx, W, H, () => { s = (s * 1664525 + 1013904223) & 0xFFFFFFFF; return (s >>> 0) / 0xFFFFFFFF; }, canvas);
+      } else if (!e.isIntersecting) {
+        canvas._hasLeftView = true;
+      }
+    });
+  }, { threshold: 0.1 });
+  reObs.observe(canvas);
+  canvas._reentryObserver = reObs;
+
+  runGen(ctx, W, H, rng, canvas);
 }
 
 function dla(ctx, W, H, rng, canvas) {
@@ -881,7 +900,7 @@ function dla(ctx, W, H, rng, canvas) {
   canvas._visible = true;
 
   function step() {
-    if (!canvas._visible) { requestAnimationFrame(step); return; }
+    if (!canvas._visible) { canvas._animFrame = requestAnimationFrame(step); return; }
     let settled = 0;
     for (let iter = 0; iter < 20; iter++) {
       for (let i = particles.length - 1; i >= 0; i--) {
@@ -924,9 +943,9 @@ function dla(ctx, W, H, rng, canvas) {
       }
     }
     frame++;
-    if (frame < 2000) requestAnimationFrame(step);
+    if (frame < 2000) canvas._animFrame = requestAnimationFrame(step);
   }
-  requestAnimationFrame(step);
+  canvas._animFrame = requestAnimationFrame(step);
 }
 
 function flow_field(ctx, W, H, rng, canvas) {
@@ -960,7 +979,7 @@ function flow_field(ctx, W, H, rng, canvas) {
   canvas._visible = true;
 
   function step() {
-    if (!canvas._visible) { requestAnimationFrame(step); return; }
+    if (!canvas._visible) { canvas._animFrame = requestAnimationFrame(step); return; }
     // Fade
     ctx.globalAlpha = 0.01;
     ctx.fillStyle = GARDEN_COLORS.bg;
@@ -983,9 +1002,9 @@ function flow_field(ctx, W, H, rng, canvas) {
       ctx.fillRect(p.x, p.y, 2, 2);
     }
     frame++;
-    if (frame < 3000) requestAnimationFrame(step);
+    if (frame < 3000) canvas._animFrame = requestAnimationFrame(step);
   }
-  requestAnimationFrame(step);
+  canvas._animFrame = requestAnimationFrame(step);
 }
 
 function cellular(ctx, W, H, rng) {
@@ -1037,7 +1056,7 @@ function game_of_life(ctx, W, H, rng, canvas) {
 
   let gen = 0;
   function step() {
-    if (!canvas._visible) { requestAnimationFrame(step); return; }
+    if (!canvas._visible) { canvas._animFrame = requestAnimationFrame(step); return; }
     ctx.fillStyle = GARDEN_COLORS.bg;
     ctx.fillRect(0, 0, W, H);
 
@@ -1060,9 +1079,9 @@ function game_of_life(ctx, W, H, rng, canvas) {
     }
     grid = next;
     gen++;
-    if (gen < 1000) setTimeout(() => requestAnimationFrame(step), 80);
+    if (gen < 1000) setTimeout(() => canvas._animFrame = requestAnimationFrame(step), 80);
   }
-  requestAnimationFrame(step);
+  canvas._animFrame = requestAnimationFrame(step);
 }
 
 // Set date

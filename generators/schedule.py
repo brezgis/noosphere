@@ -40,7 +40,6 @@ SCHEDULE = {
 
     # Daily music recommendation
     'music_rec': 'daily',
-}
 
     # Monthly (1st of month)
     'monthly_playlist': 'monthly_1st',

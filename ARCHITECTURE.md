@@ -2,7 +2,7 @@
 
 ## Overview
 
-Noosphere is a personal content feed: 15 independent Python generators write JSON cards to `feed/`, an Express server serves them via API, and a vanilla JS frontend renders them as a scrollable timeline.
+Noosphere is a personal content feed: 17 independent Python generators write JSON cards to `feed/`, an Express server serves them via API, and a vanilla JS frontend renders them as a scrollable timeline.
 
 ## Directory Structure
 
@@ -39,10 +39,13 @@ noosphere/
 │   ├── the_diff.py        # ⟺ The Diff
 │   ├── typeface.py        # ◈ Typeface of the Week
 │   ├── recipe.py          # 🍳 Recipe
+│   ├── music_rec.py       # 🎵 You Should Hear This (daily, Claude + Spotify)
+│   ├── monthly_playlist.py # 📻 Monthly Playlist (1st of month, compiles recs)
 │   └── data/
 │       ├── tractatus.json          # 513 propositions
 │       ├── russian-sentences.json  # 122 literary sentences
 │       ├── literary-passages.json  # 566 paragraphs from 20 novels
+│       ├── taste-profile.json       # Spotify listening profile for music recs
 │       └── corpus-*.txt            # Leipzig corpora (not in git, ~130K lines)
 └── feed/                  # Generated JSON cards (not in git)
 ```
@@ -107,6 +110,27 @@ Defined in `schedule.py`. Days are 0=Monday through 6=Sunday:
 - **Wednesday**: typeface, recipe
 - **Friday**: dead_medium
 - **Sunday**: annotation
+- **Daily**: music_rec (Claude-powered, searches Spotify, skips liked songs)
+- **Monthly (1st)**: monthly_playlist (compiles daily recs + curated picks into Spotify playlist)
+
+## Spotify Integration
+
+Two generators use the Spotify API via `spotipy`:
+
+- **music_rec.py** — Daily. Uses Claude to suggest a song based on the user's taste profile (`data/taste-profile.json`), recent listening, and top artists. Searches Spotify to find the track URL. Filters out songs already in the user's Liked Songs library. Retries up to 3 times if the suggestion is already liked.
+- **monthly_playlist.py** — 1st of each month. Collects all daily recs from the previous month, asks Claude for additional curated picks (also filtered against liked songs), and creates a real Spotify playlist via the API. Falls back to individual track links if playlist creation fails (common with Spotify dev-mode apps).
+
+Both require `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and `SPOTIFY_REDIRECT_URI` env vars. Token is cached at `~/.spotify-token-cache`.
+
+## Feed Ordering
+
+The frontend sorts items differently based on recency:
+- **Today**: newest-first (like a timeline)
+- **Older days**: grouped by day, then subdivided by time-of-day (Morning/Midday/Afternoon/Evening)
+
+## Entropy Garden Scroll-Back
+
+Entropy garden canvas animations replay when the card scrolls back into view. Uses `IntersectionObserver` to detect when the card leaves and re-enters the viewport, resetting the RNG seed and replaying the animation from scratch.
 
 ## Feed JSON Format
 

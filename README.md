@@ -8,11 +8,11 @@ Named after [Vernadsky's concept](https://en.wikipedia.org/wiki/Noosphere) of th
 
 ## What It Is
 
-Noosphere is a self-hosted PWA that aggregates 15 independent content streams into a scrollable timeline. Each stream is a Python script that generates one feed card per day (or per week), drawing from real data sources and using an LLM for commentary. Cards accumulate over time — scroll down to see yesterday's, last week's.
+Noosphere is a self-hosted PWA that aggregates 17 independent content streams into a scrollable timeline. Each stream is a Python script that generates one feed card per day (or per week), drawing from real data sources and using an LLM for commentary. Cards accumulate over time — scroll down to see yesterday's, last week's.
 
 Think of it as RSS meets social media meets a curated zine, generated fresh every morning.
 
-## The 15 Streams
+## The 17 Streams
 
 | Stream | Cadence | Source |
 |--------|---------|--------|
@@ -31,6 +31,8 @@ Think of it as RSS meets social media meets a curated zine, generated fresh ever
 | ⟺ **The Diff** | Weekly | Same passage in 2-3 languages, side by side, with translation analysis |
 | ◈ **Typeface of the Week** | Weekly | 32 historically interesting typefaces with stories |
 | 🍳 **Recipe** | Weekly | Real recipe from TheMealDB + etymology of a key ingredient |
+| 🎵 **You Should Hear This** | Daily | Claude-powered music discovery + Spotify search, skips liked songs |
+| 📻 **Monthly Playlist** | Monthly (1st) | Compiles daily recs + curated picks into a Spotify playlist |
 
 ## Data Sources
 
@@ -65,12 +67,12 @@ If no Discord credentials are found, cross-posting is silently skipped — feed 
 ├─────────────────────────────────────┤
 │        public/index.html             │
 │        PWA frontend                  │
-│        15 card type renderers        │
+│        17 card type renderers        │
 │        Catppuccin Mocha theme        │
 │        service worker + offline      │
 ├─────────────────────────────────────┤
 │        generators/                   │
-│        15 Python scripts             │
+│        17 Python scripts             │
 │        run daily via cron            │
 │        each writes one JSON to feed/ │
 │        schedule.py controls cadence  │
@@ -124,6 +126,11 @@ LLM_MODEL=claude-sonnet-4-20250514
 
 # Optional: Unsplash API (for Midnight Postcard)
 UNSPLASH_ACCESS_KEY=your-key
+
+# Optional: Spotify API (for Music Rec + Monthly Playlist)
+SPOTIFY_CLIENT_ID=your-client-id
+SPOTIFY_CLIENT_SECRET=your-client-secret
+SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
 
 # Optional: customize which repos git log watches
 # Edit generators/git_log.py REPOS list
@@ -180,7 +187,7 @@ Single-page vanilla JS app. No framework, no build step.
 
 - **Catppuccin Mocha** dark theme
 - **Courier Prime** (body) + **EB Garamond** (headers)
-- **15 distinct card types** with unique styling
+- **17 distinct card types** with unique styling
 - **Sidebar** for filtering by stream type and regex search
 - **Entropy Garden** cards render live `<canvas>` animations (DLA frost crystals, flow fields, cellular automata, Game of Life)
 - **PWA** with service worker for offline support and home screen install

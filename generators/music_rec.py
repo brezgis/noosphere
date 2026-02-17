@@ -26,7 +26,7 @@ def get_spotify():
         client_id=os.environ['SPOTIFY_CLIENT_ID'],
         client_secret=os.environ['SPOTIFY_CLIENT_SECRET'],
         redirect_uri=os.environ['SPOTIFY_REDIRECT_URI'],
-        scope='user-read-recently-played user-top-read',
+        scope='user-read-recently-played user-top-read user-library-read',
         cache_path=os.path.expanduser('~/.spotify-token-cache'),
         open_browser=False,
     ))

@@ -87,22 +87,37 @@ def get_liked_track_keys(sp):
             break
     return keys
 
+def normalize(s):
+    """Normalize string for fuzzy matching."""
+    import unicodedata
+    s = unicodedata.normalize('NFKD', s.lower().strip())
+    s = ''.join(c for c in s if not unicodedata.combining(c))
+    return s
+
+def strings_match(a, b, threshold=0.6):
+    """Check if two strings are similar enough (simple containment + ratio check)."""
+    a, b = normalize(a), normalize(b)
+    if a in b or b in a:
+        return True
+    # Simple character overlap ratio
+    if not a or not b:
+        return False
+    common = sum(1 for c in a if c in b)
+    ratio = common / max(len(a), len(b))
+    return ratio >= threshold
+
 def find_spotify_url(sp, track_name, artist_name):
-    """Search Spotify for a track and return its URL."""
-    try:
-        q = f'track:{track_name} artist:{artist_name}'
-        results = sp.search(q=q, type='track', limit=1)
-        if results['tracks']['items']:
-            return results['tracks']['items'][0]['external_urls'].get('spotify', '')
-    except:
-        pass
-    try:
-        # Broader search
-        results = sp.search(q=f'{track_name} {artist_name}', type='track', limit=1)
-        if results['tracks']['items']:
-            return results['tracks']['items'][0]['external_urls'].get('spotify', '')
-    except:
-        pass
+    """Search Spotify for a track and return its URL. Verifies the result actually matches."""
+    for query in [f'track:{track_name} artist:{artist_name}', f'{track_name} {artist_name}']:
+        try:
+            results = sp.search(q=query, type='track', limit=5)
+            for item in results['tracks']['items']:
+                sp_track = item['name']
+                sp_artist = item['artists'][0]['name']
+                if strings_match(track_name, sp_track) and strings_match(artist_name, sp_artist):
+                    return item['external_urls'].get('spotify', '')
+        except:
+            pass
     return ''
 
 def load_past_recs():

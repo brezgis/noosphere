@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 """Noosphere music recommendation generator.
 
-Uses Anna's Spotify listening history + the Spotify API to find
-genuinely surprising music she hasn't heard. Posts as a daily card.
+Spotify deprecated recommendations, related-artists, and audio-features for
+dev-mode apps (Nov 2024). So we use a different approach:
+
+1. Pull Anna's top artists + liked songs from Spotify (still available)
+2. Use Last.fm's free API to find similar artists she doesn't already know
+3. Search Spotify for that artist's tracks → guaranteed real, linkable song
+4. Claude writes the blurb — never picks the song
+
+No hallucinated artists. Every link is verified.
 """
-import json, os, sys, random
+import json, os, sys, random, time
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -14,11 +21,15 @@ for p in ['~/clawd/.env', '~/.env']:
 
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
+import requests
 
 sys.path.insert(0, os.path.dirname(__file__))
 from utils import write_feed, feed_exists, today, ask_claude
 
 FEED_NAME = f"{today()}-music-rec"
+
+LASTFM_API_KEY = os.environ.get('LASTFM_API_KEY', '')
+
 
 def get_spotify():
     """Get authenticated Spotify client."""
@@ -31,6 +42,7 @@ def get_spotify():
         open_browser=False,
     ))
 
+
 def load_listening_profile():
     """Load the distilled taste profile from historical data."""
     profile_path = os.path.join(os.path.dirname(__file__), 'data', 'taste-profile.json')
@@ -38,36 +50,9 @@ def load_listening_profile():
         return json.load(open(profile_path))
     return None
 
-def get_recent_context(sp):
-    """Get recent listening for context."""
-    try:
-        recent = sp.current_user_recently_played(limit=50)
-        artists = set()
-        tracks = []
-        for item in recent['items']:
-            t = item['track']
-            artists.add(t['artists'][0]['name'])
-            tracks.append(f"{t['name']} — {t['artists'][0]['name']}")
-        return {
-            'recent_artists': list(artists)[:20],
-            'recent_tracks': tracks[:15],
-        }
-    except:
-        return {'recent_artists': [], 'recent_tracks': []}
-
-def get_top_context(sp):
-    """Get top artists/tracks for different time ranges."""
-    context = {}
-    for term in ['short_term', 'medium_term', 'long_term']:
-        try:
-            top = sp.current_user_top_artists(limit=20, time_range=term)
-            context[term] = [a['name'] for a in top['items']]
-        except:
-            context[term] = []
-    return context
 
 def get_liked_track_keys(sp):
-    """Fetch all liked songs and return a set of 'artist::track' keys (lowercased) for matching."""
+    """Fetch all liked songs and return a set of 'artist::track' keys (lowercased)."""
     keys = set()
     offset = 0
     while True:
@@ -87,179 +72,274 @@ def get_liked_track_keys(sp):
             break
     return keys
 
-def normalize(s):
-    """Normalize string for fuzzy matching."""
-    import unicodedata
-    s = unicodedata.normalize('NFKD', s.lower().strip())
-    s = ''.join(c for c in s if not unicodedata.combining(c))
-    return s
 
-def strings_match(a, b, threshold=0.6):
-    """Check if two strings are similar enough (simple containment + ratio check)."""
-    a, b = normalize(a), normalize(b)
-    if a in b or b in a:
-        return True
-    # Simple character overlap ratio
-    if not a or not b:
-        return False
-    common = sum(1 for c in a if c in b)
-    ratio = common / max(len(a), len(b))
-    return ratio >= threshold
+def get_known_artist_names(sp, profile):
+    """Build a set of artist names Anna already knows."""
+    known = set()
 
-def find_spotify_url(sp, track_name, artist_name):
-    """Search Spotify for a track and return its URL. Verifies the result actually matches."""
-    for query in [f'track:{track_name} artist:{artist_name}', f'{track_name} {artist_name}']:
+    # From taste profile
+    if profile and 'known_artists' in profile:
+        for a in profile['known_artists']:
+            known.add(a.lower().strip())
+
+    # From top artists (all time ranges)
+    for term in ['short_term', 'medium_term', 'long_term']:
         try:
-            results = sp.search(q=query, type='track', limit=5)
-            for item in results['tracks']['items']:
-                sp_track = item['name']
-                sp_artist = item['artists'][0]['name']
-                if strings_match(track_name, sp_track) and strings_match(artist_name, sp_artist):
-                    return item['external_urls'].get('spotify', '')
+            top = sp.current_user_top_artists(limit=50, time_range=term)
+            for a in top['items']:
+                known.add(a['name'].lower().strip())
         except:
             pass
-    return ''
+
+    return known
+
+
+def get_seed_artist_names(sp):
+    """Get artist names from top artists for Last.fm similarity lookups."""
+    artists = []
+    for term in ['short_term', 'medium_term', 'long_term']:
+        try:
+            top = sp.current_user_top_artists(limit=30, time_range=term)
+            for a in top['items']:
+                artists.append(a['name'])
+        except:
+            pass
+    return list(set(artists))
+
+
+def lastfm_similar_artists(artist_name, limit=30):
+    """Use Last.fm API to find artists similar to the given artist."""
+    if not LASTFM_API_KEY:
+        return []
+    try:
+        resp = requests.get('http://ws.audioscrobbler.com/2.0/', params={
+            'method': 'artist.getsimilar',
+            'artist': artist_name,
+            'api_key': LASTFM_API_KEY,
+            'format': 'json',
+            'limit': limit,
+        }, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        similar = data.get('similarartists', {}).get('artist', [])
+        return [{'name': a['name'], 'match': float(a.get('match', 0))} for a in similar]
+    except Exception as e:
+        print(f"    Last.fm similar failed for {artist_name}: {e}")
+        return []
+
+
+def lastfm_top_tracks(artist_name, limit=10):
+    """Get an artist's top tracks from Last.fm (for context, not for linking)."""
+    if not LASTFM_API_KEY:
+        return []
+    try:
+        resp = requests.get('http://ws.audioscrobbler.com/2.0/', params={
+            'method': 'artist.gettoptracks',
+            'artist': artist_name,
+            'api_key': LASTFM_API_KEY,
+            'format': 'json',
+            'limit': limit,
+        }, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        tracks = data.get('toptracks', {}).get('track', [])
+        return [t['name'] for t in tracks]
+    except:
+        return []
+
+
+def spotify_search_artist_track(sp, artist_name, track_name=None):
+    """Search Spotify for a specific track by an artist. Returns track dict or None."""
+    try:
+        if track_name:
+            q = f'artist:{artist_name} track:{track_name}'
+        else:
+            q = f'artist:{artist_name}'
+        results = sp.search(q=q, type='track', limit=10)
+        items = results['tracks']['items']
+        if not items:
+            return None
+
+        # If we searched for a specific track, verify the artist matches
+        for item in items:
+            sp_artist = item['artists'][0]['name'].lower().strip()
+            if artist_name.lower().strip() in sp_artist or sp_artist in artist_name.lower().strip():
+                return {
+                    'id': item['id'],
+                    'name': item['name'],
+                    'artist': item['artists'][0]['name'],
+                    'album': item.get('album', {}).get('name', ''),
+                    'year': item.get('album', {}).get('release_date', '')[:4],
+                    'popularity': item.get('popularity', 0),
+                    'spotify_url': item.get('external_urls', {}).get('spotify', ''),
+                }
+        return None
+    except Exception as e:
+        print(f"    Spotify search failed for {artist_name}: {e}")
+        return None
+
 
 def load_past_recs():
-    """Load previously recommended artists to avoid repeats."""
+    """Load previously recommended tracks to avoid repeats."""
     state_path = os.path.join(os.path.dirname(__file__), '.music-rec-state.json')
     if os.path.exists(state_path):
         return json.load(open(state_path))
-    return {'recommended': []}
+    return {'recommended_tracks': [], 'recommended_artists': []}
+
 
 def save_past_recs(state):
     state_path = os.path.join(os.path.dirname(__file__), '.music-rec-state.json')
+    state['recommended_tracks'] = state.get('recommended_tracks', [])[-100:]
+    state['recommended_artists'] = state.get('recommended_artists', [])[-100:]
     with open(state_path, 'w') as f:
         json.dump(state, f, indent=2)
 
+
 def generate_recommendation():
-    """Generate today's music recommendation using Claude as discovery engine."""
+    """Generate today's music recommendation from real data."""
     if feed_exists(FEED_NAME):
         print(f"Already exists: {FEED_NAME}")
         return
 
     sp = get_spotify()
     profile = load_listening_profile()
-    recent = get_recent_context(sp)
-    top = get_top_context(sp)
     past = load_past_recs()
 
-    # Build taste context
-    taste_context = f"""Recent listening: {', '.join(recent.get('recent_artists', [])[:10])}
-Current top artists (last 4 weeks): {', '.join(top.get('short_term', [])[:10])}
-Longer-term favorites: {', '.join(top.get('medium_term', [])[:10])}"""
+    print("  Loading known artists...")
+    known_artists = get_known_artist_names(sp, profile)
+    print(f"  {len(known_artists)} known artists")
 
-    if profile:
-        taste_context += f"""
-Taste profile: {profile.get('summary', '')}
-Key traits: {', '.join(profile.get('traits', []))}
-Languages: {', '.join(profile.get('languages', []))}"""
-
-    # Sample some known artists to exclude
-    known = profile.get('known_artists', []) if profile else []
-    known_sample = ', '.join(random.sample(known, min(50, len(known))))
-    past_recs = ', '.join(past.get('recommended', [])[-30:])
-
-    # Random theme to keep recs diverse
-    themes = [
-        'Find something from a language she listens to (Spanish, French, or Russian) that she hasn\'t heard.',
-        'Find an obscure indie/emo band she\'d obsess over.',
-        'Find something from a country or musical tradition she\'d never expect to love.',
-        'Find a deep folk or Americana cut that would hit her like Pinegrove or The Lumineers.',
-        'Find something brand new (released in the last year) that fits her taste.',
-        'Find a classic she somehow missed — something from the 60s-90s with that earnest quality she loves.',
-        'Find something with stunning vocals — a voice that would stop her in her tracks.',
-        'Find something from Eastern Europe, the Balkans, or the post-Soviet world.',
-        'Find a song that would be perfect at 3AM — intimate, honest, slightly melancholy.',
-        'Find something chaotic and fun — the musical equivalent of "Bailamos" meets "Girls" by The Dare.',
-    ]
-    theme = random.choice(themes)
-
-    prompt = f"""You are a music-obsessed friend with encyclopedic, global taste. Recommend ONE specific song.
-
-LISTENER PROFILE:
-{taste_context}
-
-KEY TRAITS:
-- Values sincerity over coolness. Earnest > ironic.
-- Multilingual listener: English, Spanish, French, Russian. Non-English recs welcome.
-- Range: emo (Front Bottoms, MCR) + folk (Lumineers, Pinegrove) + classic rock (Eagles, Fleetwood Mac) + French indie (Therapie TAXI) + Russian rap (Oxxxymiron) + pop deep cuts + literally anything sincere.
-- Played "Such Small Hands" by La Dispute 31 times AND "Bailamos" by Enrique Iglesias 37 times. That range.
-- Loves discovering artists nobody she knows has heard of.
-
-TODAY'S DIRECTION: {theme}
-
-DO NOT recommend any of these known artists: {known_sample}
-DO NOT recommend these (already recommended recently): {past_recs}
-
-Recommend something she has GENUINELY never heard. Go obscure. Go global. Go deep. The song must actually exist on Spotify.
-
-Format EXACTLY like this (no extra text):
-ARTIST: [artist name]
-TRACK: [track name]
-ALBUM: [album name]
-YEAR: [release year]
-WHY: [2-3 sentences. Be specific about why SHE would love this. Connect to her taste. Write like a friend texting "okay STOP and listen to this."]"""
-
-    # Load liked songs to filter against
     print("  Loading liked songs...")
     liked_keys = get_liked_track_keys(sp)
-    print(f"  {len(liked_keys)} liked songs loaded")
+    print(f"  {len(liked_keys)} liked songs")
 
-    # Try up to 3 times to find a song not in liked songs
-    rec = None
-    for attempt in range(3):
-        response = ask_claude(prompt, max_tokens=300, temperature=1.0)
+    print("  Getting seed artists...")
+    seeds = get_seed_artist_names(sp)
+    print(f"  {len(seeds)} seed artists")
 
-        # Parse response
-        candidate = {}
-        for line in response.strip().split('\n'):
-            for key in ['ARTIST', 'TRACK', 'ALBUM', 'YEAR', 'WHY']:
-                if line.startswith(f'{key}:'):
-                    candidate[key.lower()] = line.split(':', 1)[1].strip()
+    past_artist_names = set(a.lower() for a in past.get('recommended_artists', []))
+    # Also include old format
+    past_artist_names.update(a.lower() for a in past.get('recommended', []))
+    past_track_ids = set(past.get('recommended_tracks', []))
 
-        if not candidate.get('track') or not candidate.get('artist'):
-            print(f"  Attempt {attempt+1}: failed to parse recommendation")
-            continue
-
-        # Check if it's in liked songs
-        key = f"{candidate['artist'].lower().strip()}::{candidate['track'].lower().strip()}"
-        if key in liked_keys:
-            print(f"  Attempt {attempt+1}: {candidate['track']} by {candidate['artist']} — already liked, retrying")
-            continue
-
-        rec = candidate
-        break
-
-    if not rec:
-        print("Failed to find a recommendation not in liked songs after 3 attempts")
+    if not seeds:
+        print("No seed artists available")
         return
 
-    # Find Spotify URL
-    spotify_url = find_spotify_url(sp, rec['track'], rec['artist'])
+    # Shuffle seeds and try to find a good recommendation
+    random.shuffle(seeds)
+    chosen = None
+
+    for seed in seeds[:10]:  # Try up to 10 seed artists
+        print(f"  Trying seed: {seed}")
+        similar = lastfm_similar_artists(seed)
+        if not similar:
+            continue
+
+        # Filter: unknown to Anna, not recently recommended
+        candidates = [
+            a for a in similar
+            if a['name'].lower().strip() not in known_artists
+            and a['name'].lower().strip() not in past_artist_names
+        ]
+
+        if not candidates:
+            continue
+
+        # Bias toward medium similarity (not too close, not too far)
+        # Sort by match score, pick from the middle third
+        candidates.sort(key=lambda a: a['match'], reverse=True)
+        mid_start = len(candidates) // 3
+        mid_end = 2 * len(candidates) // 3
+        pool = candidates[mid_start:mid_end] if mid_end > mid_start else candidates
+        if not pool:
+            pool = candidates
+
+        random.shuffle(pool)
+
+        for candidate in pool[:5]:  # Try up to 5 candidates per seed
+            artist_name = candidate['name']
+
+            # Get their top tracks from Last.fm
+            top_tracks = lastfm_top_tracks(artist_name)
+
+            # Try to find them on Spotify
+            track = None
+            if top_tracks:
+                # Try a few top tracks
+                for track_name in random.sample(top_tracks, min(3, len(top_tracks))):
+                    track = spotify_search_artist_track(sp, artist_name, track_name)
+                    if track:
+                        break
+
+            if not track:
+                # Generic artist search
+                track = spotify_search_artist_track(sp, artist_name)
+
+            if not track:
+                continue
+
+            # Check if already liked or recommended
+            key = f"{track['artist'].lower().strip()}::{track['name'].lower().strip()}"
+            if key in liked_keys:
+                continue
+            if track['id'] in past_track_ids:
+                continue
+
+            track['_seed'] = seed
+            track['_match'] = candidate['match']
+            chosen = track
+            break
+
+        if chosen:
+            break
+
+    if not chosen:
+        print("No suitable recommendation found")
+        return
+
+    print(f"  Found: {chosen['name']} by {chosen['artist']} (via {chosen['_seed']}, match: {chosen['_match']:.2f})")
+
+    # Claude writes the blurb about a REAL, VERIFIED song
+    taste_summary = ''
+    if profile:
+        taste_summary = f"Taste: {profile.get('summary', '')}. Traits: {', '.join(profile.get('traits', []))}"
+
+    prompt = f"""Write a 2-3 sentence music recommendation blurb. You're a music-obsessed friend texting someone.
+
+SONG: "{chosen['name']}" by {chosen['artist']}
+ALBUM: {chosen['album']} ({chosen['year']})
+DISCOVERED VIA: Similar to {chosen['_seed']}
+
+LISTENER: {taste_summary}
+
+Write like you're texting a friend "okay STOP and listen to this." Be specific about the sound/vibe. No preamble, just the blurb. If you aren't sure about the specific song, write about why the artist is worth discovering and connect to the listener's taste."""
+
+    blurb = ask_claude(prompt, max_tokens=200, temperature=0.9)
 
     card = {
         'type': 'music_rec',
         'timestamp': datetime.now().isoformat(timespec='seconds'),
-        'title': rec.get('track', 'Unknown'),
-        'artist': rec.get('artist', 'Unknown'),
-        'album': rec.get('album', ''),
-        'year': rec.get('year', ''),
-        'body': rec.get('why', ''),
-        'spotify_url': spotify_url,
+        'title': chosen['name'],
+        'artist': chosen['artist'],
+        'album': chosen['album'],
+        'year': chosen['year'],
+        'body': blurb.strip(),
+        'spotify_url': chosen['spotify_url'],
     }
 
     write_feed(FEED_NAME, card)
 
-    # Track what we've recommended
-    past['recommended'].append(rec['artist'])
+    # Track recommendations
+    past.setdefault('recommended_tracks', []).append(chosen['id'])
+    past.setdefault('recommended_artists', []).append(chosen['artist'])
+    if 'recommended' in past:
+        past['recommended_artists'].extend(past.pop('recommended'))
     save_past_recs(past)
 
-    print(f"Recommended: {card['title']} by {card['artist']}")
-    if spotify_url:
-        print(f"  Spotify: {spotify_url}")
-    else:
-        print("  (not found on Spotify)")
+    print(f"  ✓ Recommended: {card['title']} by {card['artist']}")
+    print(f"    Spotify: {card['spotify_url']}")
+
 
 if __name__ == '__main__':
     generate_recommendation()

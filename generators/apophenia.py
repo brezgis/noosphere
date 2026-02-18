@@ -133,6 +133,7 @@ def generate():
             "type": items[1]['type'],
             "content": f"<strong>{items[1]['title']}</strong><br><br>{items[1]['content']}",
         },
+        "prompt": "What connects these?",
     })
 
 if __name__ == '__main__':

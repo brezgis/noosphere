@@ -122,6 +122,21 @@ def generate():
         print("Couldn't get two items")
         return
 
+    # Generate the connection
+    a_desc = f"{items[0]['title']}: {items[0]['content']}"
+    b_desc = f"{items[1]['title']}: {items[1]['content']}"
+    connection_prompt = f"""Two seemingly unrelated items:
+A) {a_desc}
+B) {b_desc}
+
+Write a surprising, insightful 2-3 sentence connection between these two things. Be creative — find a genuine conceptual thread, not a forced analogy. No preamble, just the connection."""
+
+    try:
+        connection = ask_claude(connection_prompt, max_tokens=200, temperature=0.9).strip()
+    except Exception as e:
+        print(f"Failed to generate connection: {e}")
+        connection = ""
+
     write_feed(name, {
         "type": "apophenia",
         "timestamp": f"{today()}T14:00:00",
@@ -133,6 +148,7 @@ def generate():
             "type": items[1]['type'],
             "content": f"<strong>{items[1]['title']}</strong><br><br>{items[1]['content']}",
         },
+        "connection": connection,
         "prompt": "What connects these?",
     })
 

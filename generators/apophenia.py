@@ -57,10 +57,16 @@ def get_arxiv_random():
     summary = summary_match.group(1).strip()[:300] if summary_match else ''
     summary = ' '.join(summary.split())  # normalize whitespace
     
+    # Extract arxiv URL from <id> tag inside <entry>
+    entry_text = text[text.find('<entry>'):] if '<entry>' in text else ''
+    id_match = re.search(r'<id>(https?://[^<]+)</id>', entry_text)
+    url = id_match.group(1).strip() if id_match else ''
+    
     return {
         'type': 'arxiv',
         'title': title,
         'content': truncate_sentence(summary, 250),
+        'url': url,
     }
 
 def get_poem_fragment():

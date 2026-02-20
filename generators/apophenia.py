@@ -137,16 +137,26 @@ Write a surprising, insightful 2-3 sentence connection between these two things.
         print(f"Failed to generate connection: {e}")
         connection = ""
 
+    def make_title_html(item):
+        title = item['title']
+        url = item.get('url', '')
+        if url:
+            return f'<a href="{url}" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.2);">{title}</a>'
+        else:
+            return title
+
     write_feed(name, {
         "type": "apophenia",
         "timestamp": f"{today()}T14:00:00",
         "item_a": {
             "type": items[0]['type'],
-            "content": f"<strong>{items[0]['title']}</strong><br><br>{items[0]['content']}",
+            "content": f"<strong>{make_title_html(items[0])}</strong><br><br>{items[0]['content']}",
+            "url": items[0].get('url', ''),
         },
         "item_b": {
             "type": items[1]['type'],
-            "content": f"<strong>{items[1]['title']}</strong><br><br>{items[1]['content']}",
+            "content": f"<strong>{make_title_html(items[1])}</strong><br><br>{items[1]['content']}",
+            "url": items[1].get('url', ''),
         },
         "connection": connection,
         "prompt": "What connects these?",

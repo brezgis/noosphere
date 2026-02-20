@@ -4,6 +4,7 @@ feed/
 # Runtime state
 generators/.*-state.json
 generators/.*.json
+.discord-drip-state
 
 # Large corpus data (download separately)
 generators/data/corpus-*.txt

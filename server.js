@@ -87,7 +87,7 @@ app.get('/api/types', (req, res) => {
   }
 });
 
-const server = app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '127.0.0.1', () => {
   console.log(`Noosphere running on http://localhost:${PORT}`);
 });
 

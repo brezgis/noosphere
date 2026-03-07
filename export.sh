@@ -58,8 +58,8 @@ with open(output_file, 'w') as f:
 print(f"  Exported {len(items)} feed items")
 PYEOF
 
-# 3. Upload to samovar via SCP (uses SSH alias from ~/.ssh/config)
-echo "[$(date)] Uploading to samovar..."
+# 3. Upload to VPS via SCP (uses SSH alias from ~/.ssh/config)
+echo "[$(date)] Uploading to VPS..."
 scp -r "$EXPORT_DIR"/* samovar:"$REMOTE_DIR/"
 ssh samovar "chown -R projects:projects $REMOTE_DIR/ && chmod -R o+r $REMOTE_DIR/"
 

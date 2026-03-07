@@ -20,10 +20,16 @@ mkdir -p "$EXPORT_DIR/api"
 # Copy static frontend
 cp -r "$PUBLIC_DIR"/* "$EXPORT_DIR/"
 
+# Stamp service worker with deploy version (content hash of index.html)
+SW_VERSION=$(md5sum "$EXPORT_DIR/index.html" | cut -c1-8)
+sed -i "s/AUTO_VERSION/$SW_VERSION/g" "$EXPORT_DIR/sw.js"
+echo "  SW cache version: $SW_VERSION"
+
 # Generate /api/feed as static JSON
 python3 - "$FEED_DIR" "$EXPORT_DIR/api/feed" << 'PYEOF'
 import json, os, sys
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 feed_dir = sys.argv[1]
 output_file = sys.argv[2]
@@ -38,8 +44,14 @@ for f in sorted(os.listdir(feed_dir), reverse=True):
     except Exception as e:
         print(f"  Warning: malformed {f}: {e}")
 items.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-now = datetime.now()
-items = [i for i in items if datetime.fromisoformat(i['timestamp'].replace('Z', '')) <= now]
+now = datetime.now(ZoneInfo('America/New_York'))
+def parse_ts(ts):
+    ts = ts.replace('Z', '+00:00')
+    dt = datetime.fromisoformat(ts)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo('America/New_York'))
+    return dt
+items = [i for i in items if parse_ts(i['timestamp']) <= now]
 items = items[:500]
 with open(output_file, 'w') as f:
     json.dump({"items": items, "count": len(items)}, f)

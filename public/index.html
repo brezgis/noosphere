@@ -461,6 +461,13 @@
 
 <script>
 // Convert markdown bold/italic to HTML (in case generators slip through markdown)
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 function md2html(text) {
   if (!text) return '';
   return text
@@ -517,8 +524,8 @@ const CARD_RENDERERS = {
       <div class="card-label">$ git log <span class="card-time">${formatTime(item.timestamp)}</span></div>
       ${(item.commits || []).map(c => `
         <div class="commit">
-          <span class="hash">${c.hash || ''}</span>
-          <span class="msg">${c.message || ''} — <span class="repo">${c.repo || ''}</span></span>
+          <span class="hash">${escapeHtml(c.hash || '')}</span>
+          <span class="msg">${escapeHtml(c.message || '')} — <span class="repo">${escapeHtml(c.repo || '')}</span></span>
         </div>
       `).join('')}
     </div>`,
@@ -528,23 +535,23 @@ const CARD_RENDERERS = {
       <div class="card-label">⟁ Apophenia Machine <span class="card-time">${formatTime(item.timestamp)}</span></div>
       <div class="pair">
         <div class="pair-item">
-          <div class="item-type">${item.item_a?.type || ''}</div>
-          ${item.item_a?.content || ''}
+          <div class="item-type">${escapeHtml(item.item_a?.type || '')}</div>
+          ${escapeHtml(item.item_a?.content || '')}
         </div>
         <div class="pair-item">
-          <div class="item-type">${item.item_b?.type || ''}</div>
-          ${item.item_b?.content || ''}
+          <div class="item-type">${escapeHtml(item.item_b?.type || '')}</div>
+          ${escapeHtml(item.item_b?.content || '')}
         </div>
       </div>
       <div class="prompt" onclick="this.nextElementSibling.classList.toggle('revealed')">What connects these?</div>
-      <div class="connection">${item.connection || ''}</div>
+      <div class="connection">${escapeHtml(item.connection || '')}</div>
     </div>`,
 
   postcard: (item) => `
     <div class="card card-postcard">
       <div class="card-label">🌙 Midnight Postcard <span class="card-time">${formatTime(item.timestamp)}</span></div>
-      ${item.image ? `<img src="${item.image}" alt="" loading="lazy">` : `<div class="image-placeholder">[ loading... ]</div>`}
-      ${item.photographer ? `<div style="padding:8px 20px 12px;font-size:13px;opacity:0.5;background:var(--card);">Photo by <a href="${item.photographer_url || '#'}?utm_source=noosphere&utm_medium=referral" target="_blank" style="color:var(--text);text-decoration:underline;">${item.photographer}</a> on <a href="https://unsplash.com/?utm_source=noosphere&utm_medium=referral" target="_blank" style="color:var(--text);text-decoration:underline;">Unsplash</a></div>` : ''}
+      ${item.image ? `<img src="${escapeHtml(item.image)}" alt="" loading="lazy">` : `<div class="image-placeholder">[ loading... ]</div>`}
+      ${item.photographer ? `<div style="padding:8px 20px 12px;font-size:13px;opacity:0.5;background:var(--card);">Photo by <a href="${escapeHtml(item.photographer_url || '#')}?utm_source=noosphere&utm_medium=referral" target="_blank" style="color:var(--text);text-decoration:underline;">${escapeHtml(item.photographer)}</a> on <a href="https://unsplash.com/?utm_source=noosphere&utm_medium=referral" target="_blank" style="color:var(--text);text-decoration:underline;">Unsplash</a></div>` : ''}
     </div>`,
 
   dead_medium: (item) => `
@@ -604,24 +611,24 @@ const CARD_RENDERERS = {
   annotation: (item) => `
     <div class="card card-annotation">
       <div class="card-label">✎ The Annotation Layer <span class="card-time">${formatTime(item.timestamp)}</span></div>
-      <div class="source-text">${item.text || ''}</div>
+      <div class="source-text">${escapeHtml(item.text || '')}</div>
       <div class="annotations">
         ${(item.annotations || []).map((a, i) => `
-          <div class="annotation"><span class="ann-marker">${i + 1}</span> ${a}</div>
+          <div class="annotation"><span class="ann-marker">${i + 1}</span> ${escapeHtml(a)}</div>
         `).join('')}
       </div>
-      <div class="source-meta">${item.source || ''}</div>
+      <div class="source-meta">${escapeHtml(item.source || '')}</div>
     </div>`,
 
   corpus_surprise: (item) => `
     <div class="card card-corpus">
       <div class="card-label">⟐ The Corpus Surprise <span class="card-time">${formatTime(item.timestamp)}</span></div>
-      <div class="corpus-sentence">"${item.sentence || ''}"</div>
+      <div class="corpus-sentence">"${escapeHtml(item.sentence || '')}"</div>
       <div class="corpus-meta">
-        ${item.corpus ? `<span class="corpus-tag source">${item.corpus}</span>` : ''}
-        ${item.register ? `<span class="corpus-tag register">${item.register}</span>` : ''}
-        ${item.year ? `<span class="corpus-tag year">${item.year}</span>` : ''}
-        ${item.genre ? `<span class="corpus-tag">${item.genre}</span>` : ''}
+        ${item.corpus ? `<span class="corpus-tag source">${escapeHtml(item.corpus)}</span>` : ''}
+        ${item.register ? `<span class="corpus-tag register">${escapeHtml(item.register)}</span>` : ''}
+        ${item.year ? `<span class="corpus-tag year">${escapeHtml(item.year)}</span>` : ''}
+        ${item.genre ? `<span class="corpus-tag">${escapeHtml(item.genre)}</span>` : ''}
       </div>
       ${item.context ? `<div class="card-body">${md2html(item.context)}</div>` : ''}
     </div>`,

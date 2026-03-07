@@ -58,8 +58,8 @@ with open(output_file, 'w') as f:
 print(f"  Exported {len(items)} feed items")
 PYEOF
 
-# 3. Upload to REDACTED_HOST via SCP (uses SSH alias from ~/.ssh/config)
-echo "[$(date)] Uploading to REDACTED_HOST..."
+# 3. Upload to VPS via SCP (uses SSH alias from ~/.ssh/config)
+echo "[$(date)] Uploading to VPS..."
 scp -r "$EXPORT_DIR"/* REDACTED_HOST:"$REMOTE_DIR/"
 ssh REDACTED_HOST "chown -R projects:projects $REMOTE_DIR/ && chmod -R o+r $REMOTE_DIR/"
 

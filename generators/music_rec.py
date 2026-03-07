@@ -16,7 +16,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # Load env
-for p in ['~/clawd/.env', '~/.env']:
+for p in ['~/.env', '.env']:
     load_dotenv(os.path.expanduser(p), override=True)
 
 import spotipy

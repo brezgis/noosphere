@@ -15,7 +15,7 @@ def _get_llm_config():
     
     # Fall back to OpenClaw gateway config
     for config_name in ['openclaw.json', 'config.json']:
-        for config_dir in ['~/.openclaw', '~/.clawdbot']:
+        for config_dir in ['~/.openclaw']:
             config_path = os.path.expanduser(os.path.join(config_dir, config_name))
             if os.path.exists(config_path):
                 try:
@@ -71,8 +71,9 @@ def _post_to_discord(data):
     try:
         # Find gateway token
         token = None
+        config = None
         for config_name in ['openclaw.json', 'config.json']:
-            for config_dir in ['~/.openclaw', '~/.clawdbot']:
+            for config_dir in ['~/.openclaw']:
                 config_path = os.path.expanduser(os.path.join(config_dir, config_name))
                 if os.path.exists(config_path):
                     try:
@@ -198,6 +199,9 @@ def _post_to_discord(data):
         msg = '\n'.join(parts)
 
         # Post via Discord API directly
+        if config is None:
+            print("  Discord: no config loaded, skipping")
+            return
         discord_token = config.get('channels', {}).get('discord', {}).get('token', '')
         if not discord_token:
             print("  Discord: no bot token found, skipping")

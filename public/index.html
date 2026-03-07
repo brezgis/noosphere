@@ -696,16 +696,6 @@ function groupByTimeOfDay(items) {
   return { morning, midday, afternoon, evening };
 }
 
-async function loadFeed() {
-  try {
-    const res = await fetch('/api/feed?limit=50');
-    const data = await res.json();
-    renderFeed(data.items);
-  } catch (err) {
-    document.getElementById('cards').innerHTML = '<div class="empty">Could not load feed</div>';
-  }
-}
-
 function renderCard(item) {
   const renderer = CARD_RENDERERS[item.type];
   if (renderer) return renderer(item);

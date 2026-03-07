@@ -1,4 +1,5 @@
-const CACHE_NAME = 'noosphere-v1';
+// AUTO_VERSION is replaced by export.sh on each deploy
+const CACHE_NAME = 'noosphere-AUTO_VERSION';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

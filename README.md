@@ -210,6 +210,61 @@ Single-page vanilla JS app. No framework, no build step.
 
 A low-stock monitor in `run_all.sh` alerts when any pool drops below threshold.
 
+## Deployment (Production)
+
+Noosphere is deployed as a **static site** — no Express server exposed to the internet.
+
+### How it works
+
+```
+north (home server)                    samovar (VPS: REDACTED)
+┌──────────────────────┐               ┌──────────────────────────┐
+│ generators/run_all.sh │               │ nginx                    │
+│   ↓                   │    SCP        │   ↓                      │
+│ feed/*.json           │ ──────────→   │ /home/projects/noosphere │
+│   ↓                   │  every 5 min  │   /public/               │
+│ export.sh             │               │     index.html           │
+│   builds static JSON  │               │     api/feed (static)    │
+│   copies frontend     │               │                          │
+└──────────────────────┘               └──────────────────────────┘
+                                              ↓
+                                        https://noosphere.brezgis.com
+```
+
+1. **Cron job on north** runs `export.sh` every 5 minutes
+2. `export.sh` runs the Python generators (idempotent — skip if today's cards exist)
+3. Builds a static `/api/feed` JSON file from the feed directory (latest 50 items)
+4. Copies the PWA frontend + feed JSON to samovar via SCP
+5. **nginx on samovar** serves it as static files over HTTPS (Let's Encrypt)
+
+### Why static?
+
+Running Express on a home server with personal data is a risk — any RCE vulnerability gives an attacker access to everything. Static export means zero attack surface: the public internet never touches north. Samovar serves plain files under a `projects` user with no shell access.
+
+### The `projects` user on samovar
+
+A dedicated system user (`projects`) owns all public-facing project files. It's SFTP-only (chrooted, `ForceCommand internal-sftp`), so even if credentials leak, the attacker can only read/write files in `/home/projects/` — no shell, no lateral movement.
+
+### DNS
+
+`noosphere.brezgis.com` → A record → `REDACTED` (samovar)
+
+TLS via Let's Encrypt with auto-renewal (certbot).
+
+### Export script
+
+```bash
+# Manual run:
+bash /home/anna/clawd/projects/noosphere/export.sh
+
+# Cron (anna's crontab on north):
+*/5 * * * * /home/anna/clawd/projects/noosphere/export.sh >> .../export.log 2>&1
+```
+
+### Previous architecture
+
+Before March 2026, noosphere ran as a live Express server on north (port 7701, localhost only). The server is preserved in `server.js` for local development but is not used in production.
+
 ## License
 
 MIT

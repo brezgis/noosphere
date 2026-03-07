@@ -40,7 +40,7 @@ for f in sorted(os.listdir(feed_dir), reverse=True):
 items.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
 now = datetime.now()
 items = [i for i in items if datetime.fromisoformat(i['timestamp'].replace('Z', '')) <= now]
-items = items[:50]
+items = items[:500]
 with open(output_file, 'w') as f:
     json.dump({"items": items, "count": len(items)}, f)
 print(f"  Exported {len(items)} feed items")

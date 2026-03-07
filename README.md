@@ -217,7 +217,7 @@ Noosphere is deployed as a **static site** — no Express server exposed to the 
 ### How it works
 
 ```
-north (home server)                    samovar (VPS: 95.216.166.4)
+local server                           VPS
 ┌──────────────────────┐               ┌──────────────────────────┐
 │ generators/run_all.sh │               │ nginx                    │
 │   ↓                   │    SCP        │   ↓                      │
@@ -231,23 +231,23 @@ north (home server)                    samovar (VPS: 95.216.166.4)
                                         https://noosphere.brezgis.com
 ```
 
-1. **Cron job on north** runs `export.sh` every 5 minutes
+1. **Cron job** runs `export.sh` every 5 minutes
 2. `export.sh` runs the Python generators (idempotent — skip if today's cards exist)
-3. Builds a static `/api/feed` JSON file from the feed directory (latest 50 items)
-4. Copies the PWA frontend + feed JSON to samovar via SCP
-5. **nginx on samovar** serves it as static files over HTTPS (Let's Encrypt)
+3. Builds a static `/api/feed` JSON file from the feed directory (latest 500 items)
+4. Copies the PWA frontend + feed JSON to the VPS via SCP
+5. **nginx** serves it as static files over HTTPS (Let's Encrypt)
 
 ### Why static?
 
-Running Express on a home server with personal data is a risk — any RCE vulnerability gives an attacker access to everything. Static export means zero attack surface: the public internet never touches north. Samovar serves plain files under a `projects` user with no shell access.
+Running Express on a home server with personal data is a risk — any RCE vulnerability gives an attacker access to everything. Static export means zero attack surface: the public internet never touches the local server. The VPS serves plain files under a dedicated `projects` user with no shell access.
 
-### The `projects` user on samovar
+### The `projects` user
 
-A dedicated system user (`projects`) owns all public-facing project files. It's SFTP-only (chrooted, `ForceCommand internal-sftp`), so even if credentials leak, the attacker can only read/write files in `/home/projects/` — no shell, no lateral movement.
+A dedicated system user (`projects`) owns all public-facing project files. It's SFTP-only (chrooted, `ForceCommand internal-sftp`), so even if credentials leak, the attacker can only read/write files in the project directory — no shell, no lateral movement.
 
 ### DNS
 
-`noosphere.brezgis.com` → A record → `95.216.166.4` (samovar)
+`noosphere.brezgis.com` → A record pointing to the VPS.
 
 TLS via Let's Encrypt with auto-renewal (certbot).
 
@@ -255,15 +255,15 @@ TLS via Let's Encrypt with auto-renewal (certbot).
 
 ```bash
 # Manual run:
-bash /home/anna/clawd/projects/noosphere/export.sh
+bash export.sh
 
-# Cron (anna's crontab on north):
-*/5 * * * * /home/anna/clawd/projects/noosphere/export.sh >> .../export.log 2>&1
+# Cron (every 5 minutes):
+*/5 * * * * /path/to/noosphere/export.sh >> export.log 2>&1
 ```
 
 ### Previous architecture
 
-Before March 2026, noosphere ran as a live Express server on north (port 7701, localhost only). The server is preserved in `server.js` for local development but is not used in production.
+Before March 2026, noosphere ran as a live Express server (port 7701, localhost only). The server is preserved in `server.js` for local development but is not used in production.
 
 ## License
 

@@ -1,0 +1,13 @@
+# serializer version: 1
+# name: TestFeedExport.test_feed_snapshot
+  dict({
+    'all_have_timestamp': True,
+    'all_have_type': True,
+    'count': 3,
+    'types': list([
+      'russian',
+      'weather',
+      'wittgenstein',
+    ]),
+  })
+# ---

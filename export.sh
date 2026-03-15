@@ -1,5 +1,5 @@
 #!/bin/bash
-# Noosphere static export: generate feed JSON + bundle static site → SCP to samovar
+# Noosphere static export: generate feed JSON + bundle static site → SCP to deploy host
 set -e
 
 NOOSPHERE_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -60,8 +60,8 @@ PYEOF
 
 # 3. Upload to VPS via SCP (uses SSH alias from ~/.ssh/config)
 echo "[$(date)] Uploading to VPS..."
-scp -r "$EXPORT_DIR"/* samovar:"$REMOTE_DIR/"
-ssh samovar "chown -R projects:projects $REMOTE_DIR/ && chmod -R o+r $REMOTE_DIR/"
+scp -r "$EXPORT_DIR"/* "${DEPLOY_HOST:?Set DEPLOY_HOST}":"$REMOTE_DIR/"
+ssh "${DEPLOY_HOST}" "chown -R projects:projects $REMOTE_DIR/ && chmod -R o+r $REMOTE_DIR/"
 
 # 4. Cleanup
 rm -rf "$EXPORT_DIR"

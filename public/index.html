@@ -468,6 +468,15 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function safeHtml(text) {
+  if (!text) return '';
+  // Escape everything first, then selectively restore allowed tags
+  const escaped = escapeHtml(text);
+  return escaped
+    .replace(/&lt;(\/?(?:sup|em|strong|b|i))(?:\s+class=&quot;([a-z0-9_-]+)&quot;)?&gt;/gi,
+      (_, tag, cls) => cls ? `<${tag} class="${cls}">` : `<${tag}>`);
+}
+
 function md2html(text) {
   if (!text) return '';
   return text
@@ -611,13 +620,13 @@ const CARD_RENDERERS = {
   annotation: (item) => `
     <div class="card card-annotation">
       <div class="card-label">✎ The Annotation Layer <span class="card-time">${formatTime(item.timestamp)}</span></div>
-      <div class="source-text">${escapeHtml(item.text || '')}</div>
+      <div class="source-text">${safeHtml(item.text || '')}</div>
       <div class="annotations">
         ${(item.annotations || []).map((a, i) => `
-          <div class="annotation"><span class="ann-marker">${i + 1}</span> ${escapeHtml(a)}</div>
+          <div class="annotation"><span class="ann-marker">${i + 1}</span> ${safeHtml(a)}</div>
         `).join('')}
       </div>
-      <div class="source-meta">${escapeHtml(item.source || '')}</div>
+      <div class="source-meta">${safeHtml(item.source || '')}</div>
     </div>`,
 
   corpus_surprise: (item) => `

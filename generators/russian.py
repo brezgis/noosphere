@@ -14,8 +14,11 @@ def get_next_sentence():
     sentences = load_sentences()
     state = {}
     if os.path.exists(STATE_FILE):
-        with open(STATE_FILE) as f:
-            state = json.load(f)
+        try:
+            with open(STATE_FILE) as f:
+                state = json.load(f)
+        except (json.JSONDecodeError, ValueError):
+            state = {}  # empty/corrupt state — restart from the beginning
     idx = state.get('index', 0)
     if idx >= len(sentences):
         idx = 0

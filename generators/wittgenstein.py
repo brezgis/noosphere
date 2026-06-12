@@ -15,8 +15,11 @@ def get_next_index():
     """Walk sequentially through all 513 propositions."""
     state = {}
     if os.path.exists(STATE_FILE):
-        with open(STATE_FILE) as f:
-            state = json.load(f)
+        try:
+            with open(STATE_FILE) as f:
+                state = json.load(f)
+        except (json.JSONDecodeError, ValueError):
+            state = {}  # empty/corrupt state — restart from the beginning
     idx = state.get('index', 0)
     props = load_propositions()
     next_idx = (idx + 1) % len(props)

@@ -1,7 +1,34 @@
 """Shared utilities for Noosphere content generators."""
-import json, os, sys, datetime, requests
+import json, os, sys, datetime, requests, subprocess
 
 FEED_DIR = os.path.join(os.path.dirname(__file__), '..', 'feed')
+
+def _read_openclaw_config_value(key_path):
+    """Read a value from ~/.openclaw/openclaw.json using node.js.
+
+    openclaw.json uses JSONC format (JS-style comments + trailing commas),
+    which stdlib json.load() cannot parse. node.js eval handles it cleanly.
+    key_path: dot-separated, e.g. 'gateway.auth.token'
+    """
+    config_path = os.path.expanduser('~/.openclaw/openclaw.json')
+    if not os.path.exists(config_path):
+        return None
+    js_access = 'obj'
+    for part in key_path.split('.'):
+        js_access += f'?.[{json.dumps(part)}]'
+    script = (
+        f"const fs=require('fs');"
+        f"const txt=fs.readFileSync({json.dumps(config_path)},'utf8');"
+        f"const obj=eval('('+txt+')');"
+        f"const val={js_access};"
+        f"if(val)process.stdout.write(String(val));"
+    )
+    try:
+        result = subprocess.run(['node', '-e', script], capture_output=True, text=True, timeout=5)
+        val = result.stdout.strip()
+        return val if val else None
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return None
 
 def _get_llm_config():
     """Get LLM API configuration. Checks environment variables first, then OpenClaw config."""
@@ -13,20 +40,12 @@ def _get_llm_config():
     if url and key:
         return url, key, model
     
-    # Fall back to OpenClaw gateway config
-    for config_name in ['openclaw.json', 'config.json']:
-        for config_dir in ['~/.openclaw']:
-            config_path = os.path.expanduser(os.path.join(config_dir, config_name))
-            if os.path.exists(config_path):
-                try:
-                    with open(config_path) as f:
-                        config = json.load(f)
-                    token = config.get('gateway', {}).get('auth', {}).get('token', '')
-                    if token:
-                        return 'http://localhost:18789/v1/chat/completions', token, model
-                except (json.JSONDecodeError, KeyError):
-                    continue
-    
+    # Fall back to OpenClaw gateway config.
+    # openclaw.json is JSONC — must use node.js to parse it.
+    token = _read_openclaw_config_value('gateway.auth.token')
+    if token:
+        return 'http://localhost:18789/v1/chat/completions', token, model
+
     raise RuntimeError(
         "No LLM API configured. Set LLM_API_URL and LLM_API_KEY environment variables, "
         "or run with an OpenClaw gateway."
@@ -69,25 +88,13 @@ NOOSPHERE_DISCORD_CHANNEL = os.environ.get('NOOSPHERE_DISCORD_CHANNEL', '')
 def _post_to_discord(data):
     """Post a feed item to the Noosphere Discord channel via OpenClaw gateway."""
     try:
-        # Find gateway token
-        token = None
-        config = None
-        for config_name in ['openclaw.json', 'config.json']:
-            for config_dir in ['~/.openclaw']:
-                config_path = os.path.expanduser(os.path.join(config_dir, config_name))
-                if os.path.exists(config_path):
-                    try:
-                        with open(config_path) as f:
-                            config = json.load(f)
-                        token = config.get('gateway', {}).get('auth', {}).get('token', '')
-                        if token:
-                            break
-                    except (json.JSONDecodeError, KeyError):
-                        continue
-            if token:
-                break
-        if not token:
-            print("  Discord: no gateway token found, skipping")
+        # No channel configured → cross-posting disabled (don't spam the API).
+        if not NOOSPHERE_DISCORD_CHANNEL:
+            return
+        # Find discord bot token. openclaw.json is JSONC — use node.js helper.
+        discord_token = _read_openclaw_config_value('channels.discord.token')
+        if not discord_token:
+            print("  Discord: no bot token found, skipping")
             return
 
         # Format the card for Discord
@@ -199,13 +206,6 @@ def _post_to_discord(data):
         msg = '\n'.join(parts)
 
         # Post via Discord API directly
-        if config is None:
-            print("  Discord: no config loaded, skipping")
-            return
-        discord_token = config.get('channels', {}).get('discord', {}).get('token', '')
-        if not discord_token:
-            print("  Discord: no bot token found, skipping")
-            return
         resp = requests.post(
             f'https://discord.com/api/v10/channels/{NOOSPHERE_DISCORD_CHANNEL}/messages',
             headers={"Authorization": f"Bot {discord_token}", "Content-Type": "application/json"},
@@ -219,14 +219,19 @@ def _post_to_discord(data):
     except Exception as e:
         print(f"  Discord: error posting — {e}")
 
-def write_feed(name, data):
-    """Write a feed item JSON file. name should be like '2026-02-16-weather'."""
+def write_feed(name, data, post_discord=True):
+    """Write a feed item JSON file. name should be like '2026-02-16-weather'.
+
+    post_discord=False suppresses the Discord cross-post (used by the echoes
+    generator so reruns don't spam the channel).
+    """
     os.makedirs(FEED_DIR, exist_ok=True)
     path = os.path.join(FEED_DIR, f"{name}.json")
     with open(path, 'w') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     print(f"Wrote {path}")
-    _post_to_discord(data)
+    if post_discord:
+        _post_to_discord(data)
     return path
 
 def feed_exists(name):

@@ -5,6 +5,10 @@
 set -e
 cd "$(dirname "$0")"
 
+# Load local runtime config (LLM endpoint, API keys) if present.
+ENV_FILE="$(cd .. && pwd)/.env"
+if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE"; set +a; fi
+
 echo "[$(date)] Running Noosphere generators..."
 
 # Helper: run generator with schedule check
@@ -44,6 +48,9 @@ run annotation annotation.py
 
 # Monthly (1st of month)
 run monthly_playlist monthly_playlist.py
+
+# Recycled content — runs last so it can draw from the freshest archive
+run echoes echoes.py
 
 # === Low-stock monitor ===
 python3 - <<'PYEOF'

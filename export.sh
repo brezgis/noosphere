@@ -51,7 +51,16 @@ def parse_ts(ts):
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=ZoneInfo('America/New_York'))
     return dt
-items = [i for i in items if parse_ts(i['timestamp']) <= now]
+def published(i):
+    ts = i.get('timestamp')
+    if not ts:
+        return False
+    try:
+        return parse_ts(ts) <= now
+    except Exception as e:
+        print(f"  Warning: bad timestamp {ts!r}: {e}")
+        return False
+items = [i for i in items if published(i)]
 items = items[:500]
 with open(output_file, 'w') as f:
     json.dump({"items": items, "count": len(items)}, f)
@@ -60,8 +69,11 @@ PYEOF
 
 # 3. Upload to VPS via SCP (uses SSH alias from ~/.ssh/config)
 echo "[$(date)] Uploading to VPS..."
+ssh samovar "mkdir -p $REMOTE_DIR/api"
 scp -r "$EXPORT_DIR"/* samovar:"$REMOTE_DIR/"
-ssh samovar "chown -R projects:projects $REMOTE_DIR/ && chmod -R o+r $REMOTE_DIR/"
+# chown to the projects user; a+rX gives nginx (www-data) read on files and
+# traverse (+x) on directories — plain o+r would not let it enter subdirs.
+ssh samovar "chown -R projects:projects $REMOTE_DIR/ && chmod -R a+rX $REMOTE_DIR/ && chmod a+rx /home/projects/noosphere /home/projects"
 
 # 4. Cleanup
 rm -rf "$EXPORT_DIR"

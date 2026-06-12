@@ -41,6 +41,10 @@ SCHEDULE = {
     # Daily music recommendation
     'music_rec': 'daily',
 
+    # Daily recycled card — resurfaces an evergreen past card so the feed
+    # always has something fresh on top (the "never looks dead" safety net).
+    'echoes': 'daily',
+
     # Monthly (1st of month)
     'monthly_playlist': 'monthly_1st',
 }

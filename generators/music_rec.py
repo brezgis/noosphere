@@ -128,6 +128,36 @@ def lastfm_similar_artists(artist_name, limit=30):
         return []
 
 
+def llm_similar_artists(artist_name, limit=12):
+    """Discover similar artists via the local LLM (fallback when no Last.fm key).
+
+    Every name returned is later verified against Spotify, so hallucinated
+    artists simply get skipped.
+    """
+    prompt = (
+        f'List {limit} musical artists or bands whose sound is similar to "{artist_name}", '
+        f'but lean toward lesser-known / underrated ones rather than the biggest names. '
+        f'Return ONLY the artist names, one per line, no numbering, no commentary, no genres.'
+    )
+    try:
+        resp = ask_claude(prompt, max_tokens=300, temperature=0.9)
+    except Exception as e:
+        print(f"    LLM similar failed for {artist_name}: {e}")
+        return []
+    out = []
+    seen = set()
+    for line in resp.splitlines():
+        name = line.strip().lstrip('-*•0123456789.)（ ').strip().strip('"\'`*').strip()
+        low = name.lower()
+        if (not name or len(name) > 60 or low in seen
+                or low == artist_name.lower()
+                or low.startswith(('here', 'sure', 'okay', 'these', 'note', 'similar'))):
+            continue
+        seen.add(low)
+        out.append({'name': name, 'match': max(0.1, 1.0 - len(out) * 0.05)})
+    return out
+
+
 def lastfm_top_tracks(artist_name, limit=10):
     """Get an artist's top tracks from Last.fm (for context, not for linking)."""
     if not LASTFM_API_KEY:
@@ -233,6 +263,8 @@ def generate_recommendation():
     for seed in seeds[:10]:  # Try up to 10 seed artists
         print(f"  Trying seed: {seed}")
         similar = lastfm_similar_artists(seed)
+        if not similar:
+            similar = llm_similar_artists(seed)  # fallback: local LLM discovery
         if not similar:
             continue
 

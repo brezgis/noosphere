@@ -68,8 +68,12 @@ def ask_claude(prompt, system=None, max_tokens=1024, temperature=0.8):
             "messages": messages,
             "max_tokens": max_tokens,
             "temperature": temperature,
+            # Disable "thinking" on reasoning models (e.g. gemma4) so the whole
+            # token budget goes to the answer, not chain-of-thought. Harmless /
+            # ignored by non-reasoning models and other OpenAI-compatible APIs.
+            "reasoning_effort": "none",
         },
-        timeout=60,
+        timeout=180,  # a 12B cold-load into VRAM can exceed 60s
     )
     resp.raise_for_status()
     data = resp.json()

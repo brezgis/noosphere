@@ -6,7 +6,7 @@ NOOSPHERE_DIR="$(cd "$(dirname "$0")" && pwd)"
 FEED_DIR="$NOOSPHERE_DIR/feed"
 PUBLIC_DIR="$NOOSPHERE_DIR/public"
 EXPORT_DIR="/tmp/noosphere-export"
-REMOTE_DIR="/home/projects/noosphere/public"
+REMOTE_DIR="${REMOTE_DIR:-/home/projects/noosphere/public}"
 
 echo "[$(date)] Starting Noosphere export..."
 

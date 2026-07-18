@@ -144,7 +144,7 @@ The `type` field determines which card renderer the frontend uses. Required fiel
 Returns all feed items, newest first.
 
 Query params:
-- `limit` (default 200) — max items to return
+- `limit` (default 50, max 200) — max items to return
 - `before` — ISO date, only items before this timestamp
 - `type` — filter by card type
 
@@ -169,10 +169,12 @@ Key components:
 
 ## Deployment
 
-Currently deployed as:
-- systemd user service on the server
-- nginx reverse proxy with TLS (Let's Encrypt)
-- Basic auth for access control
-- Reverse SSH tunnel from server to public-facing VPS
+Production is a static export — no Express server exposed to the internet:
+
+- `export.sh` (run from cron) executes the generators, builds a static `/api/feed` JSON, and copies the frontend + feed to a VPS over SCP (the `DEPLOY_HOST` env var selects the SSH alias)
+- nginx on the VPS serves the files over HTTPS (Let's Encrypt)
+- `server.js` is kept for local development only
+
+See the "Deployment (Production)" section of the README for details.
 
 The PWA can be installed to home screen on iOS/Android/desktop.

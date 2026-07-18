@@ -43,6 +43,7 @@ All content is sourced from real, open data:
 - **TheMealDB** — Real recipes with photos and ingredient lists
 - **Unsplash API** — Atmospheric photographs with proper attribution
 - **GitHub API** — Live commit feeds from watched repositories
+- **Last.fm API** — Similar-artist data for music discovery
 - **wttr.in** — Weather data
 
 LLM commentary is generated via any OpenAI-compatible API endpoint (Claude, GPT, local models, etc.).
@@ -95,9 +96,13 @@ Each generator that uses curated content has **state tracking** — sequential i
 ### Installation
 
 ```bash
-git clone https://github.com/yourusername/noosphere.git
+git clone https://github.com/brezgis/noosphere.git
 cd noosphere
 npm install
+
+# Python dependencies for the generators
+# (spotipy is only needed for the two music streams)
+pip install requests python-dotenv spotipy
 
 # Configure your LLM endpoint
 cp .env.example .env
@@ -132,6 +137,9 @@ SPOTIFY_CLIENT_ID=your-client-id
 SPOTIFY_CLIENT_SECRET=your-client-secret
 SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
 
+# Optional: Last.fm API (for Music Rec similar-artist discovery)
+LASTFM_API_KEY=your-lastfm-key
+
 # Optional: customize which repos git log watches
 # Edit generators/git_log.py REPOS list
 ```
@@ -140,6 +148,8 @@ SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
 
 The generators are designed to be swapped, edited, or replaced:
 
+- **Different city?** Edit the location in `weather.py` (it ships pointed at Cambridge, MA).
+- **Different music taste?** Edit `data/taste-profile.json` — it seeds the music recommendation prompts.
 - **Don't speak Russian?** Replace `russian.py` with sentences from any language in the Leipzig collection. Download corpora from [wortschatz.uni-leipzig.de](https://wortschatz.uni-leipzig.de/en/download).
 - **Different reading taste?** Edit `data/literary-passages.json` or run the Gutenberg extraction script on your favorite books.
 - **Watch different repos?** Edit the `REPOS` list in `git_log.py`.
@@ -209,6 +219,16 @@ Single-page vanilla JS app. No framework, no build step.
 | Seasonal ingredients | 36 | ~9 months weekly |
 
 A low-stock monitor in `run_all.sh` alerts when any pool drops below threshold.
+
+## Tests
+
+```bash
+pip install -r requirements-test.txt
+make test        # Python unit tests (pytest)
+make test-full   # unit tests + Playwright e2e smoke test
+```
+
+The e2e test needs a browser: `npx playwright install chromium`. CI runs both suites on every push (`.github/workflows/test.yml`).
 
 ## Deployment (Production)
 

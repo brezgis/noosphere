@@ -4,8 +4,8 @@
 Spotify deprecated recommendations, related-artists, and audio-features for
 dev-mode apps (Nov 2024). So we use a different approach:
 
-1. Pull Anna's top artists + liked songs from Spotify (still available)
-2. Use Last.fm's free API to find similar artists she doesn't already know
+1. Pull the user's top artists + liked songs from Spotify (still available)
+2. Use Last.fm's free API to find similar artists they don't already know
 3. Search Spotify for that artist's tracks → guaranteed real, linkable song
 4. Claude writes the blurb — never picks the song
 
@@ -74,7 +74,7 @@ def get_liked_track_keys(sp):
 
 
 def get_known_artist_names(sp, profile):
-    """Build a set of artist names Anna already knows."""
+    """Build a set of artist names the user already knows."""
     known = set()
 
     # From taste profile
@@ -236,7 +236,7 @@ def generate_recommendation():
         if not similar:
             continue
 
-        # Filter: unknown to Anna, not recently recommended
+        # Filter: unknown to the user, not recently recommended
         candidates = [
             a for a in similar
             if a['name'].lower().strip() not in known_artists

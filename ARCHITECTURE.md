@@ -54,7 +54,7 @@ noosphere/
 
 `utils.py` includes a `_post_to_discord()` function called automatically by `write_feed()`. When a new card is written, it's formatted into a Discord message (with type-specific labels, markdown formatting, and HTML stripping) and posted to a configured channel via the Discord Bot API. Failures are caught and logged without blocking feed generation.
 
-Configuration: `NOOSPHERE_DISCORD_CHANNEL` env var for the channel ID, Discord bot token from OpenClaw config or environment.
+Configuration: `NOOSPHERE_DISCORD_CHANNEL` env var for the channel ID, Discord bot token from the `DISCORD_BOT_TOKEN` env var.
 
 ## Generator Pattern
 

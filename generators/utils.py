@@ -1,54 +1,20 @@
 """Shared utilities for Noosphere content generators."""
-import json, os, sys, datetime, requests, subprocess
+import json, os, sys, datetime, requests
 
 FEED_DIR = os.path.join(os.path.dirname(__file__), '..', 'feed')
 
-def _read_openclaw_config_value(key_path):
-    """Read a value from ~/.openclaw/openclaw.json using node.js.
-
-    openclaw.json uses JSONC format (JS-style comments + trailing commas),
-    which stdlib json.load() cannot parse. node.js eval handles it cleanly.
-    key_path: dot-separated, e.g. 'gateway.auth.token'
-    """
-    config_path = os.path.expanduser('~/.openclaw/openclaw.json')
-    if not os.path.exists(config_path):
-        return None
-    js_access = 'obj'
-    for part in key_path.split('.'):
-        js_access += f'?.[{json.dumps(part)}]'
-    script = (
-        f"const fs=require('fs');"
-        f"const txt=fs.readFileSync({json.dumps(config_path)},'utf8');"
-        f"const obj=eval('('+txt+')');"
-        f"const val={js_access};"
-        f"if(val)process.stdout.write(String(val));"
-    )
-    try:
-        result = subprocess.run(['node', '-e', script], capture_output=True, text=True, timeout=5)
-        val = result.stdout.strip()
-        return val if val else None
-    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-        return None
-
 def _get_llm_config():
-    """Get LLM API configuration. Checks environment variables first, then OpenClaw config."""
-    # Environment variables (for standalone/generic use)
+    """Get LLM API configuration from environment variables."""
     url = os.environ.get('LLM_API_URL')
     key = os.environ.get('LLM_API_KEY')
     model = os.environ.get('LLM_MODEL', 'claude-sonnet-4-20250514')
-    
+
     if url and key:
         return url, key, model
-    
-    # Fall back to OpenClaw gateway config.
-    # openclaw.json is JSONC — must use node.js to parse it.
-    token = _read_openclaw_config_value('gateway.auth.token')
-    if token:
-        return 'http://localhost:18789/v1/chat/completions', token, model
 
     raise RuntimeError(
-        "No LLM API configured. Set LLM_API_URL and LLM_API_KEY environment variables, "
-        "or run with an OpenClaw gateway."
+        "No LLM API configured. Set LLM_API_URL and LLM_API_KEY environment variables "
+        "(any OpenAI-compatible chat completions endpoint works, e.g. ollama)."
     )
 
 def ask_claude(prompt, system=None, max_tokens=1024, temperature=0.8):
@@ -86,10 +52,9 @@ def now_iso():
 NOOSPHERE_DISCORD_CHANNEL = os.environ.get('NOOSPHERE_DISCORD_CHANNEL', '')
 
 def _post_to_discord(data):
-    """Post a feed item to the Noosphere Discord channel via OpenClaw gateway."""
+    """Post a feed item to the Noosphere Discord channel via the Discord Bot API."""
     try:
-        # Find discord bot token. openclaw.json is JSONC — use node.js helper.
-        discord_token = _read_openclaw_config_value('channels.discord.token')
+        discord_token = os.environ.get('DISCORD_BOT_TOKEN')
         if not discord_token:
             print("  Discord: no bot token found, skipping")
             return

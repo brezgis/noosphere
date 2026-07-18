@@ -54,7 +54,7 @@ Noosphere can automatically cross-post feed items to a Discord channel. When a g
 
 To enable:
 1. Set `NOOSPHERE_DISCORD_CHANNEL` in your `.env` to your target channel ID
-2. Configure a Discord bot token accessible to the generators (via OpenClaw config or `DISCORD_BOT_TOKEN` env var)
+2. Configure a Discord bot token via the `DISCORD_BOT_TOKEN` env var
 
 If no Discord credentials are found, cross-posting is silently skipped — feed generation is never blocked.
 

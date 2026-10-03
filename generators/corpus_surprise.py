@@ -93,7 +93,10 @@ construction, register, word order, or presuppositions?
 If the sentence is not in English, start with a translation on its own line, then leave a blank line, 
 then write the linguistic analysis. Use <br><br> to separate the translation from the analysis.
 
-Keep it under 80 words. Be precise and specific — focus on actual linguistic phenomena."""
+Keep it under 80 words. Be precise and specific — focus on actual linguistic phenomena
+visible in THIS sentence, in {lang} itself (not in your English translation). Only mention
+features {lang} really has — e.g. never discuss articles for a language without them.
+If you're unsure of a claim, leave it out."""
 
     system = "You are a multilingual corpus linguist who finds patterns in naturally-occurring language across the world's languages. Your commentary is precise, insightful, and notices things most readers would miss. You can read and analyze text in any major language."
 

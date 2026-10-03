@@ -345,7 +345,7 @@ DISCOVERED VIA: Similar to {chosen['_seed']}
 
 LISTENER: {taste_summary}
 
-Write like you're texting a friend "okay STOP and listen to this." Be specific about the sound/vibe. No preamble, just the blurb. If you aren't sure about the specific song, write about why the artist is worth discovering and connect to the listener's taste."""
+Write like a friend with great taste texting a recommendation — warm, specific, a little understated. Describe what it actually sounds like (instruments, voice, tempo, texture) rather than hype. No "OMG", no all-caps, no "hits different", no preamble, just the blurb. If you aren't sure about the specific song, write about why the artist is worth discovering and connect to the listener's taste."""
 
     blurb = ask_claude(prompt, max_tokens=200, temperature=0.9)
 

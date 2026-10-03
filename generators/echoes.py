@@ -66,6 +66,9 @@ def generate():
         return
 
     today_file = f"{name}.json"
+    # Types that already have a fresh card today — an echo of the same stream
+    # right next to it reads as a duplicate, so prefer other streams.
+    today_types = set()
     candidates = []
     for fn in os.listdir(FEED_DIR):
         if not fn.endswith('.json') or fn.startswith('.') or fn == today_file:
@@ -76,6 +79,9 @@ def generate():
         except (json.JSONDecodeError, OSError):
             continue
         if not isinstance(card, dict):
+            continue
+        if fn.startswith(today()):
+            today_types.add(card.get('type'))
             continue
         if card.get('echo'):
             continue  # never echo an echo
@@ -95,7 +101,7 @@ def generate():
         used = set()
         fresh = candidates
 
-    fn, card = random.choice(fresh)
+    fn, card = random.choice([c for c in fresh if c[1].get('type') not in today_types] or fresh)
 
     orig_ts = card.get('timestamp', '')
     echo = dict(card)

@@ -4,6 +4,7 @@
 Pulls from Wikipedia random article API + arxiv API + Poetry Foundation + misc sources.
 """
 import requests, random, json, re
+from datetime import date
 from utils import ask_claude, today, write_feed, feed_exists
 
 def truncate_sentence(text, max_chars=350):
@@ -70,28 +71,72 @@ def get_arxiv_random():
     }
 
 def get_poem_fragment():
-    """Generate a poem fragment via Claude (more reliable than scraping)."""
-    prompt = """Give me a real 2-4 line fragment from a published poem — something vivid and strange. 
-Include the poet's name and poem title. Pick something lesser-known, not the usual anthology pieces.
-Format: the lines, then "— Poet Name, 'Title'" on the last line.
-Just the poem and attribution, nothing else."""
-    
-    result = ask_claude(prompt, max_tokens=150, temperature=0.95)
-    return {
-        'type': 'poem',
-        'title': 'Poetry Fragment',
-        'content': result.strip(),
-    }
+    """A real fragment of a real public-domain poem, via PoetryDB.
+
+    Previously this asked the LLM to quote "a lesser-known poem" from memory,
+    which a small local model answers by inventing verse and pinning it on a
+    real poet. PoetryDB serves actual texts, so the quote is always genuine.
+    """
+    for _ in range(5):
+        resp = requests.get('https://poetrydb.org/random/1', timeout=15)
+        resp.raise_for_status()
+        poem = resp.json()[0]
+        # split into stanzas, pick one, take 2-4 consecutive lines from it
+        stanzas, cur = [], []
+        for line in poem.get('lines', []):
+            if line.strip():
+                cur.append(line.strip())
+            elif cur:
+                stanzas.append(cur); cur = []
+        if cur:
+            stanzas.append(cur)
+        stanzas = [s for s in stanzas if len(s) >= 2]
+        if not stanzas:
+            continue
+        stanza = random.choice(stanzas)
+        n = min(len(stanza), random.randint(2, 4))
+        start = random.randint(0, len(stanza) - n)
+        lines = stanza[start:start + n]
+        if sum(len(l) for l in lines) > 320:
+            continue
+        return {
+            'type': 'poem',
+            'title': 'Poetry Fragment',
+            'content': '\n'.join(lines) + f"\n— {poem['author']}, '{poem['title']}'",
+        }
+    raise RuntimeError('PoetryDB returned nothing usable')
 
 def get_historical_fact():
-    """Get an interesting historical fact via Claude."""
-    prompt = """One obscure historical fact. 2-3 sentences. Include the year. No preamble. No self-correction. No "let me do better." No "actually." Just state the fact."""
-    
-    result = ask_claude(prompt, max_tokens=120, temperature=0.95)
+    """A real event that happened on today's date, via Wikipedia's On This Day API.
+
+    Previously this asked Claude for "an obscure historical fact," which happily
+    invented plausible-sounding but fictional events. On This Day returns real,
+    sourced events with a Wikipedia link — no fabrication.
+    """
+    d = date.today()
+    resp = requests.get(
+        f'https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/{d.month:02d}/{d.day:02d}',
+        headers={'User-Agent': 'Noosphere/1.0 (personal feed)'},
+        timeout=10,
+    )
+    resp.raise_for_status()
+    events = resp.json().get('events', [])
+    if not events:
+        raise ValueError('no On This Day events returned')
+
+    ev = random.choice(events)
+    pages = ev.get('pages') or []
+    page = pages[0] if pages else {}
+    url = page.get('content_urls', {}).get('desktop', {}).get('page', '')
+    year = ev.get('year', '')
+    when = f"{d:%B} {d.day}"
+    title = f"{year} — On This Day ({when})" if year else f"On This Day ({when})"
+
     return {
         'type': 'history',
-        'title': 'Historical Fact',
-        'content': truncate_sentence(result.strip(), 250),
+        'title': title,
+        'content': truncate_sentence(ev.get('text', '').strip(), 250),
+        'url': url,
     }
 
 SOURCES = [

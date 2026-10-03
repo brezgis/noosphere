@@ -8,28 +8,29 @@ Named after [Vernadsky's concept](https://en.wikipedia.org/wiki/Noosphere) of th
 
 ## What It Is
 
-Noosphere is a self-hosted PWA that aggregates 17 independent content streams into a scrollable timeline. Each stream is a Python script that generates one feed card per day (or per week), drawing from real data sources and using an LLM for commentary. Cards accumulate over time — scroll down to see yesterday's, last week's.
+Noosphere is a self-hosted PWA that aggregates 18 independent content streams into a scrollable timeline. Each stream is a Python script that generates one feed card per day (or per week), drawing from real data sources and using an LLM for commentary. Cards accumulate over time — scroll down to see yesterday's, last week's.
 
 Think of it as RSS meets social media meets a curated zine, generated fresh every morning.
 
-## The 17 Streams
+## The 18 Streams
 
 | Stream | Cadence | Source |
 |--------|---------|--------|
 | ☁ **Lyrical Weather** | Daily | Live weather API + LLM prose |
 | ◇ **Wittgenstein's Ladder** | Daily | All 513 Tractatus propositions, sequential |
-| 🇷🇺 **Русский Час** | Daily | 122 curated Russian literary sentences + morphological analysis |
+| 🇷🇺 **Русский Час** | Daily | 164 curated Russian literary sentences + morphological analysis |
 | ✦ **The Untranslatable** | 3x/week | 50 untranslatable words from ~15 languages |
 | ⟐ **Corpus Surprise** | Daily | Random sentence from 130K real corpus sentences (13 languages) |
 | ✎ **Annotation Layer** | Weekly | 566 real passages from 20 Project Gutenberg novels + margin notes |
 | ⌬ **Entropy Garden** | Daily | Live generative art (DLA, flow fields, cellular automata, Game of Life) |
-| ⟁ **Apophenia Machine** | 2x/week | Two unrelated things juxtaposed — Wikipedia + arxiv + poems + history |
+| ⟁ **Apophenia Machine** | 2x/week | Two unrelated things juxtaposed — Wikipedia + arxiv + real public-domain poems (PoetryDB) + history |
 | ✝ **The Dead Medium** | Weekly | 61 defunct communication technologies with elegies |
+| 🖼 **Midday Museum** | Daily | A public-domain painting from the Art Institute of Chicago — placed midday to break up the text feeds |
 | 🌙 **Midnight Postcard** | Daily | A single atmospheric photograph from Unsplash, no caption |
 | $ **git log --oneline** | Daily | Recent commits from 30+ watched open-source repos |
 | 📍 **The Penny Red** | 2x/week | 46 renamed/erased/contested places with toponymic analysis |
 | ⟺ **The Diff** | Weekly | Same passage in 2-3 languages, side by side, with translation analysis |
-| ◈ **Typeface of the Week** | Weekly | 32 historically interesting typefaces with stories |
+| ◈ **Typeface of the Week** | Weekly | A typeface drawn from Wikipedia's typeface categories, with its story |
 | 🍳 **Recipe** | Weekly | Real recipe from TheMealDB + etymology of a key ingredient |
 | 🎵 **You Should Hear This** | Daily | Claude-powered music discovery + Spotify search, skips liked songs |
 | 📻 **Monthly Playlist** | Monthly (1st) | Compiles daily recs + curated picks into a Spotify playlist |
@@ -46,6 +47,8 @@ All content is sourced from real, open data:
 - **wttr.in** — Weather data
 
 LLM commentary is generated via any OpenAI-compatible API endpoint (Claude, GPT, local models, etc.).
+
+For a local llama.cpp server that shouldn't hold the GPU all day, set `LLM_FLEET_ID` to a systemd user unit instance (`llm@<id>`): `ask_claude()` starts it on demand when the endpoint is down and waits for `/health`; an idle timer can stop it again.
 
 ## Discord Cross-Posting
 
@@ -67,12 +70,12 @@ If no Discord credentials are found, cross-posting is silently skipped — feed 
 ├─────────────────────────────────────┤
 │        public/index.html             │
 │        PWA frontend                  │
-│        17 card type renderers        │
+│        18 card type renderers        │
 │        Catppuccin Mocha theme        │
 │        service worker + offline      │
 ├─────────────────────────────────────┤
 │        generators/                   │
-│        17 Python scripts             │
+│        18 Python scripts             │
 │        run daily via cron            │
 │        each writes one JSON to feed/ │
 │        schedule.py controls cadence  │
@@ -187,7 +190,7 @@ Single-page vanilla JS app. No framework, no build step.
 
 - **Catppuccin Mocha** dark theme
 - **Courier Prime** (body) + **EB Garamond** (headers)
-- **17 distinct card types** with unique styling
+- **18 distinct card types** with unique styling
 - **Sidebar** for filtering by stream type and regex search
 - **Entropy Garden** cards render live `<canvas>` animations (DLA frost crystals, flow fields, cellular automata, Game of Life)
 - **PWA** with service worker for offline support and home screen install
@@ -198,14 +201,14 @@ Single-page vanilla JS app. No framework, no build step.
 | Pool | Items | Runway |
 |------|-------|--------|
 | Tractatus propositions | 513 | ~1.4 years daily |
-| Russian sentences | 122 | ~4 months daily |
+| Russian sentences | 164 | ~5.5 months daily |
 | Literary passages | 566 | ~11 years weekly |
 | Corpus sentences | 130,000 | Effectively infinite |
 | Untranslatable words | 50 | ~17 weeks at 3x/wk |
 | Places (Penny Red) | 46 | ~23 weeks at 2x/wk |
 | Dead media | 61 | ~61 weeks weekly |
 | Parallel translations | 20 | ~20 weeks weekly |
-| Typefaces | 32 | ~32 weeks weekly |
+| Typefaces | hundreds (live from Wikipedia) | Effectively infinite |
 | Seasonal ingredients | 36 | ~9 months weekly |
 
 A low-stock monitor in `run_all.sh` alerts when any pool drops below threshold.

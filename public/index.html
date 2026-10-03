@@ -9,12 +9,14 @@
   <meta name="theme-color" content="#12131c">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Noosphere</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap');
 
   :root {
+    --serif: 'EB Garamond', Georgia, serif;
+    --mono: 'Courier Prime', ui-monospace, monospace;
     --bg: #12131c;
     --surface: #1a1b27;
     --card: #1e2030;
@@ -103,7 +105,7 @@
   }
   .menu-btn:hover { color: var(--text); }
 
-  .feed { max-width: 740px; margin: 0 auto; padding: 20px 16px 60px; }
+  .feed { max-width: 720px; margin: 0 auto; padding: 20px 16px 60px; }
 
   .menu-btn { display: block; }
 
@@ -112,7 +114,7 @@
     .sidebar { z-index: 100; }
     .sidebar-overlay { display: none; }
     .sidebar-overlay.show { display: block !important; }
-    .feed { max-width: 780px; margin: 0 auto; padding: 20px 32px 60px; }
+    .feed { max-width: 760px; margin: 0 auto; padding: 20px 32px 60px; }
     .menu-btn { left: 16px; z-index: 101; }
   }
 
@@ -178,6 +180,8 @@
     /* side-by-side comparison blocks stack on phones (two columns are too cramped
        at ~390px and overflow); each becomes full-width */
     .pair, .translations { flex-direction: column; }
+    .card { padding: 22px 20px; }
+    .card-body, .commentary, .breakdown, .analysis, .connection { font-size: 18px; }
   }
 
   /* Base card */
@@ -193,6 +197,7 @@
   .card:hover { border-color: #3a3d57; }
   .card-label {
     font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+    font-variant-emoji: text;
     margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
     font-family: 'Courier Prime', monospace;
   }
@@ -202,6 +207,15 @@
     font-size: 24px; font-weight: 600; margin-bottom: 10px; line-height: 1.3;
   }
   .card-body { color: var(--subtext); font-size: 16px; line-height: 1.8; }
+  /* Long-form prose reads in Garamond; Courier stays for labels, meta and code. */
+  .card-body, .commentary, .breakdown, .analysis, .connection, .pair-item,
+  .card-annotation .annotation {
+    font-family: var(--serif); font-size: 19px; line-height: 1.65; color: #c3c8da;
+  }
+  .card-body em, .commentary em, .breakdown em, .analysis em { color: var(--text); }
+  .pair-item { font-size: 17px; }
+  .card-annotation .annotation { font-size: 17px; }
+  .card-git .card-body { font-family: var(--mono); }
   .card-body em { color: var(--text); font-style: italic; }
   .card-body strong { color: var(--text); }
   .card-footer { margin-top: 14px; font-size: 13px; color: var(--dim); }
@@ -217,14 +231,14 @@
   .card-wittgenstein .card-label { color: var(--lavender); }
   .proposition { font-family: 'EB Garamond', serif; font-size: 22px; color: var(--text); padding: 18px 0; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
   .prop-number { font-family: 'Courier Prime', monospace; font-size: 15px; color: var(--lavender); margin-right: 8px; }
-  .commentary { font-size: 15px; color: var(--subtext); line-height: 1.8; }
+  .commentary { color: var(--subtext); }
 
   /* Russian */
   .card-russian { border-left: 3px solid var(--blue); }
   .card-russian .card-label { color: var(--blue); }
-  .russian-text { font-size: 22px; color: var(--text); margin-bottom: 10px; line-height: 1.6; }
+  .russian-text { font-family: var(--serif); font-size: 26px; color: var(--text); margin-bottom: 10px; line-height: 1.45; }
   .transliteration { font-size: 14px; color: var(--dim); font-style: italic; margin-bottom: 14px; }
-  .breakdown { font-size: 15px; color: var(--subtext); line-height: 1.8; }
+  .breakdown { color: var(--subtext); }
   .source { font-size: 13px; color: var(--dim); margin-top: 10px; font-style: italic; }
 
   /* Untranslatable */
@@ -233,7 +247,7 @@
   .word { font-size: 38px; font-weight: 600; color: var(--teal); margin: 18px 0 6px; font-family: 'EB Garamond', serif; }
   .language { font-size: 14px; color: var(--dim); margin-bottom: 18px; letter-spacing: 1px; }
   .card-untranslatable .card-body { text-align: left; }
-  .question { text-align: center; font-style: italic; color: var(--teal); font-size: 15px; margin-top: 14px; }
+  .question { text-align: center; font-style: italic; color: var(--teal); font-family: var(--serif); font-size: 19px; margin-top: 14px; }
 
   /* Penny Red */
   .card-penny-red { border-left: 3px solid var(--yellow); }
@@ -260,7 +274,7 @@
   .item-type { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); margin-bottom: 8px; }
   .prompt { text-align: center; color: var(--pink); font-style: italic; font-family: 'EB Garamond', serif; font-size: 18px; cursor: pointer; user-select: none; }
   .prompt:hover { opacity: 0.8; }
-  .connection { text-align: center; color: var(--subtext); font-size: 15px; line-height: 1.7; padding: 12px 20px 0; max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease; }
+  .connection { text-align: center; color: var(--subtext); padding: 12px 20px 0; max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease; }
   .connection.revealed { max-height: 500px; opacity: 1; padding: 12px 20px 4px; }
 
   /* Midnight Postcard */
@@ -268,6 +282,22 @@
   .card-postcard .card-label { color: var(--mauve); padding: 16px 20px 0; background: var(--card); }
   .card-postcard img { width: 100%; display: block; }
   .card-postcard .image-placeholder { width: 100%; height: 280px; background: linear-gradient(135deg, #2a1a3a 0%, #1a2a3a 50%, #2a2a1a 100%); display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 13px; font-style: italic; }
+
+  /* Painting of the Day — a visual break in the middle of the text feeds */
+  .card-painting { padding: 0; overflow: hidden; border: none; border-radius: 12px; }
+  .card-painting .card-label { color: var(--peach); padding: 16px 20px 12px; background: var(--card); }
+  .card-painting .painting-frame { background: #0d0e15; display: flex; justify-content: center; }
+  .card-painting img { max-width: 100%; max-height: 620px; width: auto; display: block; }
+  .img-failed { display: none !important; }
+  .card-painting .image-placeholder { width: 100%; height: 320px; background: linear-gradient(135deg, #2a231a 0%, #1a1f2a 50%, #241a2a 100%); display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 13px; font-style: italic; }
+  .painting-placard { padding: 18px 22px 20px; background: var(--card); }
+  .painting-title { font-family: 'EB Garamond', serif; font-style: italic; font-size: 23px; line-height: 1.3; color: var(--text); }
+  .painting-artist { font-family: 'EB Garamond', serif; font-size: 17px; color: var(--peach); margin-top: 4px; }
+  .painting-meta { font-size: 13px; color: var(--dim); margin-top: 10px; line-height: 1.6; }
+  .painting-meta .dot { opacity: 0.5; margin: 0 6px; }
+  .painting-credit { font-size: 12px; color: var(--dim); font-style: italic; margin-top: 10px; opacity: 0.75; }
+  .painting-link { display: inline-block; margin-top: 12px; font-size: 13px; color: var(--peach); text-decoration: none; opacity: 0.85; }
+  .painting-link:hover { opacity: 1; text-decoration: underline; }
 
   /* Dead Medium */
   .card-dead-medium { background: linear-gradient(180deg, #2c2a36 0%, var(--card) 100%); border-top: 3px solid var(--red); }
@@ -281,7 +311,7 @@
   .translations { display: flex; gap: 12px; margin-bottom: 12px; }
   .translation { flex: 1; min-width: 0; overflow-wrap: anywhere; background: var(--surface); border-radius: 8px; padding: 18px; font-family: 'EB Garamond', serif; font-size: 17px; line-height: 1.7; color: var(--text); }
   .translator { font-family: 'Courier Prime', monospace; font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }
-  .analysis { font-size: 15px; color: var(--subtext); line-height: 1.8; }
+  .analysis { color: var(--subtext); }
   .highlight { background: rgba(166, 227, 161, 0.15); padding: 1px 4px; border-radius: 2px; }
 
   /* Typeface */
@@ -294,7 +324,7 @@
   .card-recipe { border-top: 3px solid var(--green); background: linear-gradient(180deg, #262a36 0%, var(--card) 100%); }
   .card-recipe .card-label { color: var(--green); }
   .dish-name { font-family: 'EB Garamond', serif; font-size: 26px; color: var(--text); margin-bottom: 6px; }
-  .etymology { font-size: 14px; color: var(--teal); font-style: italic; margin-bottom: 14px; padding: 10px 14px; background: var(--surface); border-radius: 6px; }
+  .etymology { font-family: var(--serif); font-size: 17px; color: var(--teal); font-style: italic; margin: 16px 0 14px; padding: 12px 16px; background: var(--surface); border-radius: 6px; }
 
   /* Entropy Garden */
   .card-entropy { background: var(--bg); border: 1px solid var(--border); padding: 0; overflow: hidden; }
@@ -417,6 +447,11 @@
   .time-separator::before, .time-separator::after {
     content: ""; flex: 1; height: 1px; background: var(--border);
   }
+  .time-separator .sep-sub { color: var(--subtext); }
+  .tod-label {
+    color: var(--dim); font-size: 11px; text-align: center; padding: 6px 0 12px;
+    letter-spacing: 3px; text-transform: uppercase;
+  }
 
   /* Empty state */
   .empty {
@@ -472,73 +507,76 @@
   </div>
 
   <div class="sidebar-section">Feed</div>
-  <div class="sidebar-item active" onclick="filterFeed(null)">
+  <div class="sidebar-item active" onclick="filterFeed(null, this)">
     <span class="sidebar-dot" style="background: var(--mauve)"></span> All
   </div>
-  <div class="sidebar-item" onclick="filterFeed('__echo__')">
+  <div class="sidebar-item" onclick="filterFeed('__echo__', this)\">
     <span class="sidebar-dot" style="background: var(--lavender)"></span> ↻ Echoes
   </div>
 
   <div class="sidebar-section">Morning</div>
-  <div class="sidebar-item" onclick="filterFeed('weather')">
+  <div class="sidebar-item" onclick="filterFeed('weather', this)\">
     <span class="sidebar-dot" style="background: var(--peach)"></span> Weather
   </div>
-  <div class="sidebar-item" onclick="filterFeed('wittgenstein')">
+  <div class="sidebar-item" onclick="filterFeed('wittgenstein', this)\">
     <span class="sidebar-dot" style="background: var(--lavender)"></span> Wittgenstein
   </div>
-  <div class="sidebar-item" onclick="filterFeed('russian')">
+  <div class="sidebar-item" onclick="filterFeed('russian', this)\">
     <span class="sidebar-dot" style="background: var(--blue)"></span> Русский Час
   </div>
 
   <div class="sidebar-section">Midday</div>
-  <div class="sidebar-item" onclick="filterFeed('penny_red')">
+  <div class="sidebar-item" onclick="filterFeed('penny_red', this)\">
     <span class="sidebar-dot" style="background: var(--yellow)"></span> Penny Red
   </div>
-  <div class="sidebar-item" onclick="filterFeed('git_log')">
+  <div class="sidebar-item" onclick="filterFeed('git_log', this)\">
     <span class="sidebar-dot" style="background: var(--green)"></span> git log
+  </div>
+  <div class="sidebar-item" onclick="filterFeed('painting', this)\">
+    <span class="sidebar-dot" style="background: var(--peach)"></span> Midday Museum
   </div>
 
   <div class="sidebar-section">Afternoon</div>
-  <div class="sidebar-item" onclick="filterFeed('untranslatable')">
+  <div class="sidebar-item" onclick="filterFeed('untranslatable', this)\">
     <span class="sidebar-dot" style="background: var(--teal)"></span> Untranslatable
   </div>
-  <div class="sidebar-item" onclick="filterFeed('apophenia')">
+  <div class="sidebar-item" onclick="filterFeed('apophenia', this)\">
     <span class="sidebar-dot" style="background: var(--pink)"></span> Apophenia
   </div>
-  <div class="sidebar-item" onclick="filterFeed('corpus_surprise')">
+  <div class="sidebar-item" onclick="filterFeed('corpus_surprise', this)\">
     <span class="sidebar-dot" style="background: var(--lavender)"></span> Corpus
   </div>
-  <div class="sidebar-item" onclick="filterFeed('annotation')">
+  <div class="sidebar-item" onclick="filterFeed('annotation', this)\">
     <span class="sidebar-dot" style="background: var(--yellow)"></span> Annotation
   </div>
-  <div class="sidebar-item" onclick="filterFeed('music_rec')">
+  <div class="sidebar-item" onclick="filterFeed('music_rec', this)\">
     <span class="sidebar-dot" style="background: var(--flamingo)"></span> Music Rec
   </div>
 
   <div class="sidebar-section">Weekly</div>
-  <div class="sidebar-item" onclick="filterFeed('the_diff')">
+  <div class="sidebar-item" onclick="filterFeed('the_diff', this)\">
     <span class="sidebar-dot" style="background: var(--green)"></span> The Diff
   </div>
-  <div class="sidebar-item" onclick="filterFeed('dead_medium')">
+  <div class="sidebar-item" onclick="filterFeed('dead_medium', this)\">
     <span class="sidebar-dot" style="background: var(--red)"></span> Dead Medium
   </div>
-  <div class="sidebar-item" onclick="filterFeed('typeface')">
+  <div class="sidebar-item" onclick="filterFeed('typeface', this)\">
     <span class="sidebar-dot" style="background: var(--mauve)"></span> Typeface
   </div>
-  <div class="sidebar-item" onclick="filterFeed('recipe')">
+  <div class="sidebar-item" onclick="filterFeed('recipe', this)\">
     <span class="sidebar-dot" style="background: var(--green)"></span> Recipe
   </div>
 
   <div class="sidebar-section">Monthly</div>
-  <div class="sidebar-item" onclick="filterFeed('monthly_playlist')">
+  <div class="sidebar-item" onclick="filterFeed('monthly_playlist', this)\">
     <span class="sidebar-dot" style="background: var(--mauve)"></span> Playlist
   </div>
 
   <div class="sidebar-section">Night</div>
-  <div class="sidebar-item" onclick="filterFeed('entropy_garden')">
+  <div class="sidebar-item" onclick="filterFeed('entropy_garden', this)\">
     <span class="sidebar-dot" style="background: var(--green)"></span> Entropy Garden
   </div>
-  <div class="sidebar-item" onclick="filterFeed('postcard')">
+  <div class="sidebar-item" onclick="filterFeed('postcard', this)\">
     <span class="sidebar-dot" style="background: var(--mauve)"></span> Postcard
   </div>
 </div>
@@ -593,7 +631,7 @@ const CARD_RENDERERS = {
 
   russian: (item) => `
     <div class="card card-russian">
-      <div class="card-label">🇷🇺 Русский Час <span class="card-time">${formatTime(item.timestamp)}</span></div>
+      <div class="card-label">Я Русский Час <span class="card-time">${formatTime(item.timestamp)}</span></div>
       <div class="russian-text">${item.text || ''}</div>
       ${item.transliteration ? `<div class="transliteration">${md2html(item.transliteration)}</div>` : ''}
       <div class="breakdown">${md2html(item.breakdown)}</div>
@@ -611,7 +649,7 @@ const CARD_RENDERERS = {
 
   penny_red: (item) => `
     <div class="card card-penny-red">
-      <div class="card-label">📍 The Penny Red <span class="card-time">${formatTime(item.timestamp)}</span></div>
+      <div class="card-label">⌖ The Penny Red <span class="card-time">${formatTime(item.timestamp)}</span></div>
       <div class="place-names">
         <span class="old-name">${item.former_name || item.old_name || ''}</span>
         <span class="arrow">→</span>
@@ -638,11 +676,11 @@ const CARD_RENDERERS = {
       <div class="pair">
         <div class="pair-item">
           <div class="item-type">${escapeHtml(item.item_a?.type || '')}</div>
-          ${escapeHtml(item.item_a?.content || '')}
+          ${item.item_a?.content || ''}
         </div>
         <div class="pair-item">
           <div class="item-type">${escapeHtml(item.item_b?.type || '')}</div>
-          ${escapeHtml(item.item_b?.content || '')}
+          ${item.item_b?.content || ''}
         </div>
       </div>
       <div class="prompt" onclick="this.nextElementSibling.classList.toggle('revealed')">What connects these?</div>
@@ -651,10 +689,29 @@ const CARD_RENDERERS = {
 
   postcard: (item) => `
     <div class="card card-postcard">
-      <div class="card-label">🌙 Midnight Postcard <span class="card-time">${formatTime(item.timestamp)}</span></div>
-      ${item.image ? `<img src="${escapeHtml(item.image)}" alt="" loading="lazy">` : `<div class="image-placeholder">[ loading... ]</div>`}
+      <div class="card-label">☾ Midnight Postcard <span class="card-time">${formatTime(item.timestamp)}</span></div>
+      ${item.image ? `<img src="${escapeHtml(item.image)}" alt="" loading="lazy" onerror="this.classList.add('img-failed')">` : `<div class="image-placeholder">[ loading... ]</div>`}
       ${item.photographer ? `<div style="padding:8px 20px 12px;font-size:13px;opacity:0.5;background:var(--card);">Photo by <a href="${escapeHtml(item.photographer_url || '#')}?utm_source=noosphere&utm_medium=referral" target="_blank" style="color:var(--text);text-decoration:underline;">${escapeHtml(item.photographer)}</a> on <a href="https://unsplash.com/?utm_source=noosphere&utm_medium=referral" target="_blank" style="color:var(--text);text-decoration:underline;">Unsplash</a></div>` : ''}
     </div>`,
+
+  painting: (item) => {
+    const meta = [item.date, item.medium, item.origin].filter(Boolean)
+      .map(escapeHtml).join('<span class="dot">·</span>');
+    return `
+    <div class="card card-painting">
+      <div class="card-label">▣ Midday Museum <span class="card-time">${formatTime(item.timestamp)}</span></div>
+      <div class="painting-frame">
+        ${item.image ? `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.alt || '')}" loading="lazy" onerror="this.parentNode.classList.add('img-failed')">` : `<div class="image-placeholder">[ loading... ]</div>`}
+      </div>
+      <div class="painting-placard">
+        <div class="painting-title">${escapeHtml(item.title || 'Untitled')}</div>
+        ${item.artist ? `<div class="painting-artist">${escapeHtml(item.artist)}</div>` : ''}
+        ${meta ? `<div class="painting-meta">${meta}</div>` : ''}
+        ${item.credit ? `<div class="painting-credit">${escapeHtml(item.credit)}</div>` : ''}
+        ${item.source_url ? `<a class="painting-link" href="${escapeHtml(item.source_url)}" target="_blank" rel="noopener">${escapeHtml(item.museum || 'View source')} →</a>` : ''}
+      </div>
+    </div>`;
+  },
 
   dead_medium: (item) => `
     <div class="card card-dead-medium">
@@ -691,9 +748,9 @@ const CARD_RENDERERS = {
 
   recipe: (item) => `
     <div class="card card-recipe">
-      <div class="card-label">🍳 Recipe of the Week <span class="card-time">${formatTime(item.timestamp)}</span></div>
+      <div class="card-label">❦ Recipe of the Week <span class="card-time">${formatTime(item.timestamp)}</span></div>
       <div class="card-body">${md2html(item.recipe || item.content || '')}</div>
-      ${item.etymology ? `<div class="etymology" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--surface1);font-style:italic;"><strong>The Word:</strong> ${md2html(item.etymology)}</div>` : ''}
+      ${item.etymology ? `<div class="etymology" style="margin-top:16px;padding-top:16px;"><strong>The Word:</strong> ${md2html(item.etymology)}</div>` : ''}
       ${item.source_url ? `<div style="margin-top:12px;font-size:13px;"><a href="${item.source_url}" target="_blank" style="color:var(--green);text-decoration:none;">Full recipe →</a></div>` : ''}
     </div>`,
 
@@ -737,7 +794,7 @@ const CARD_RENDERERS = {
 
   music_rec: (item) => `
     <div class="card card-music-rec">
-      <div class="card-label">🎵 You Should Hear This <span class="card-time">${formatTime(item.timestamp)}</span></div>
+      <div class="card-label">♪ You Should Hear This <span class="card-time">${formatTime(item.timestamp)}</span></div>
       <div class="music-rec-title">${item.title || ''}</div>
       <div class="music-rec-artist">${item.artist || ''}</div>
       ${item.album ? `<div class="music-rec-album"><em>${item.album}</em>${item.year ? ` (${item.year})` : ''}</div>` : ''}
@@ -747,7 +804,7 @@ const CARD_RENDERERS = {
 
   monthly_playlist: (item) => `
     <div class="card card-monthly-playlist">
-      <div class="card-label">📻 Monthly Playlist — ${item.month || ''} ${item.year || ''} <span class="card-time">${formatTime(item.timestamp)}</span></div>
+      <div class="card-label">◎ Monthly Playlist — ${item.month || ''} ${item.year || ''} <span class="card-time">${formatTime(item.timestamp)}</span></div>
       <div class="playlist-title">${item.title || ''}</div>
       <div class="playlist-desc">${item.description || ''}</div>
       <div class="playlist-stats">${item.track_count || 0} tracks · ${item.daily_rec_count || 0} from daily recs · ${item.curated_count || 0} curated</div>
@@ -845,41 +902,21 @@ function renderFeed(items) {
   let html = '';
   const todayStr = new Date().toLocaleDateString('en-US');
 
-  const todayItems = [];
-  const olderItems = [];
-  for (const item of shown) {
-    if (new Date(item.timestamp).toLocaleDateString('en-US') === todayStr) {
-      todayItems.push(item);
-    } else {
-      olderItems.push(item);
-    }
-  }
-
-  // Today: newest first, like a timeline
-  if (todayItems.length > 0) {
-    html += `<div class="time-separator">Today</div>`;
-    todayItems.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    for (const item of todayItems) {
-      html += renderCard(item);
-    }
-  }
-
-  // Older days: group by day, then time-of-day within each day
-  const days = groupByDay(olderItems);
+  // Group by day (newest first), then time-of-day within each day, newest first
+  const days = groupByDay(shown);
   const sortedDays = Object.keys(days).sort((a, b) => new Date(b) - new Date(a));
   for (const dayStr of sortedDays) {
-    html += `<div class="time-separator">${formatDate(new Date(dayStr))}</div>`;
+    const label = dayStr === todayStr
+      ? 'Today'
+      : formatDate(new Date(dayStr));
+    html += `<div class="time-separator">${label}</div>`;
     const dayItems = days[dayStr];
     const grouped = groupByTimeOfDay(dayItems);
-    for (const [label, sectionItems] of [['Evening', grouped.evening], ['Afternoon', grouped.afternoon], ['Midday', grouped.midday], ['Morning', grouped.morning]]) {
+    for (const [tod, sectionItems] of [['Evening', grouped.evening], ['Afternoon', grouped.afternoon], ['Midday', grouped.midday], ['Morning', grouped.morning]]) {
       if (sectionItems.length === 0) continue;
-      if (dayItems.length > 4) {
-        html += `<div style="color:var(--dim);font-size:12px;text-align:center;padding:8px 0;letter-spacing:2px;text-transform:uppercase">${label}</div>`;
-      }
-      const reversed = [...sectionItems].reverse();
-      for (const item of reversed) {
-        html += renderCard(item);
-      }
+      if (dayItems.length > 4) html += `<div class="tod-label">${tod}</div>`;
+      sectionItems.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      for (const item of sectionItems) html += renderCard(item);
     }
   }
 
@@ -948,13 +985,13 @@ function toggleSidebar() {
   }
 }
 
-function filterFeed(type) {
+function filterFeed(type, el) {
   activeFilter = type;
   renderLimit = PAGE_SIZE;
 
   // Update active state in sidebar
   document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-  event.currentTarget.classList.add('active');
+  (el || window.event?.currentTarget)?.classList.add('active');
 
   // Re-render with filters
   applyFilters();
@@ -963,10 +1000,17 @@ function filterFeed(type) {
   if (window.innerWidth < 900) toggleSidebar();
 }
 
+let feedSignature = '';
+
 async function loadFeed() {
   try {
-    const res = await fetch('/api/feed?limit=50');
+    const res = await fetch('/api/feed?limit=500', { cache: 'no-cache' });
     const data = await res.json();
+    // The 5-minute refresh used to re-render unconditionally, which restarted
+    // every Entropy Garden and collapsed any revealed Apophenia connection.
+    const sig = `${data.items.length}|${data.items.map(i => i.timestamp + i.type).join(',')}`;
+    if (sig === feedSignature) return;
+    feedSignature = sig;
     allItems = data.items;
     applyFilters();
   } catch (err) {
@@ -1018,70 +1062,59 @@ function initEntropyGarden(id, algo, seed) {
 }
 
 function dla(ctx, W, H, rng, canvas) {
-  // Diffusion-limited aggregation — frost crystal
+  // Diffusion-limited aggregation — frost crystal. Walkers are launched on a
+  // ring just outside the current crystal (not from the canvas edges), so the
+  // crystal visibly grows within seconds instead of sitting as a single dot.
   const scale = 2;
   const gw = Math.floor(W / scale), gh = Math.floor(H / scale);
+  const cx = Math.floor(gw / 2), cy = Math.floor(gh / 2);
+  const limit = Math.min(cx, cy) - 2;
   const grid = new Uint8Array(gw * gh);
-  // Seed center
-  grid[Math.floor(gh / 2) * gw + Math.floor(gw / 2)] = 1;
+  grid[cy * gw + cx] = 1;
+  let maxR = 1;
 
-  let particles = [];
-  for (let i = 0; i < 3000; i++) {
-    particles.push({ x: Math.floor(rng() * gw), y: Math.floor(rng() * gh), age: 0 });
-  }
+  const spawn = () => {
+    const a = rng() * Math.PI * 2, r = Math.min(maxR + 4, limit);
+    return { x: Math.round(cx + Math.cos(a) * r), y: Math.round(cy + Math.sin(a) * r) };
+  };
+  const particles = [];
+  for (let i = 0; i < 400; i++) particles.push(spawn());
 
-  let frame = 0;
   const observer = new IntersectionObserver(entries => {
     entries.forEach(e => { canvas._visible = e.isIntersecting; });
   }, { threshold: 0.1 });
   observer.observe(canvas);
   canvas._visible = true;
 
+  let frame = 0;
   function step() {
     if (!canvas._visible) { canvas._animFrame = requestAnimationFrame(step); return; }
-    let settled = 0;
-    for (let iter = 0; iter < 20; iter++) {
-      for (let i = particles.length - 1; i >= 0; i--) {
+    for (let iter = 0; iter < 30; iter++) {
+      for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
         p.x += Math.floor(rng() * 3) - 1;
         p.y += Math.floor(rng() * 3) - 1;
-        p.x = (p.x + gw) % gw;
-        p.y = (p.y + gh) % gh;
-        p.age++;
-
-        // Check neighbors
-        const idx = p.y * gw + p.x;
-        let neighbor = false;
-        for (let dy = -1; dy <= 1 && !neighbor; dy++) {
-          for (let dx = -1; dx <= 1 && !neighbor; dx++) {
-            if (dx === 0 && dy === 0) continue;
-            const nx = p.x + dx, ny = p.y + dy;
-            if (nx >= 0 && nx < gw && ny >= 0 && ny < gh && grid[ny * gw + nx]) neighbor = true;
-          }
+        const d2 = (p.x - cx) ** 2 + (p.y - cy) ** 2;
+        if (d2 > (maxR + 12) ** 2 || p.x < 1 || p.y < 1 || p.x >= gw - 1 || p.y >= gh - 1) {
+          particles[i] = spawn(); continue;   // wandered off — relaunch
         }
+        let neighbor = false;
+        for (let dy = -1; dy <= 1 && !neighbor; dy++)
+          for (let dx = -1; dx <= 1 && !neighbor; dx++)
+            if ((dx || dy) && grid[(p.y + dy) * gw + p.x + dx]) neighbor = true;
         if (neighbor) {
-          grid[idx] = 1;
-          // Draw pixel
-          const dist = Math.sqrt((p.x - gw/2)**2 + (p.y - gh/2)**2) / (gw/2);
-          const hue = 140 + dist * 80; // green → teal
-          const light = 60 + (1 - dist) * 20;
-          ctx.fillStyle = `hsl(${hue}, 50%, ${light}%)`;
+          grid[p.y * gw + p.x] = 1;
+          const r = Math.sqrt(d2);
+          if (r > maxR) maxR = r;
+          const dist = r / limit;
+          ctx.fillStyle = `hsl(${140 + dist * 80}, 50%, ${60 + (1 - dist) * 20}%)`;
           ctx.fillRect(p.x * scale, p.y * scale, scale, scale);
-          particles.splice(i, 1);
-          settled++;
-          // Spawn replacement at edge
-          const side = Math.floor(rng() * 4);
-          let nx, ny;
-          if (side === 0) { nx = Math.floor(rng() * gw); ny = 0; }
-          else if (side === 1) { nx = Math.floor(rng() * gw); ny = gh - 1; }
-          else if (side === 2) { nx = 0; ny = Math.floor(rng() * gh); }
-          else { nx = gw - 1; ny = Math.floor(rng() * gh); }
-          particles.push({ x: nx, y: ny, age: 0 });
+          particles[i] = spawn();
         }
       }
     }
     frame++;
-    if (frame < 2000) canvas._animFrame = requestAnimationFrame(step);
+    if (frame < 2400 && maxR < limit) canvas._animFrame = requestAnimationFrame(step);
   }
   canvas._animFrame = requestAnimationFrame(step);
 }

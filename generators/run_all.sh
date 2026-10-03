@@ -29,6 +29,7 @@ run russian russian.py
 run corpus_surprise corpus_surprise.py
 run entropy_garden entropy_garden.py
 run git_log git_log.py
+run painting painting.py
 run midnight_postcard midnight_postcard.py
 run music_rec music_rec.py
 
@@ -78,7 +79,7 @@ check_state("Untranslatable", os.path.join(DIR, ".untranslatable-state.json"), 5
 check_state("Penny Red", os.path.join(DIR, ".penny-red-state.json"), 46, "~23 weeks at 2/wk")
 check_state("Dead Medium", os.path.join(DIR, ".dead-medium-state.json"), 61, "~61 weeks at 1/wk")
 check_state("The Diff", os.path.join(DIR, ".diff-state.json"), 20, "~20 weeks at 1/wk")
-check_state("Typeface", os.path.join(DIR, ".typeface-state.json"), 32, "~32 weeks at 1/wk")
+# Typeface draws live from Wikipedia typeface categories (hundreds of titles), not a fixed pool.
 
 # JSON data files
 for label, state_f, data_f, threshold in [

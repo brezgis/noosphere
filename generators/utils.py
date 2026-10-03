@@ -1,5 +1,5 @@
 """Shared utilities for Noosphere content generators."""
-import json, os, sys, datetime, requests, subprocess
+import json, os, sys, time, datetime, requests, subprocess
 
 FEED_DIR = os.path.join(os.path.dirname(__file__), '..', 'feed')
 
@@ -51,15 +51,51 @@ def _get_llm_config():
         "or run with an OpenClaw gateway."
     )
 
+_llm_ready = False
+
+def _ensure_llm(url):
+    """Make sure the local model server is up, starting it on demand.
+
+    If LLM_FLEET_ID is set (a ~/.config/llm-fleet/<id>.conf entry), a dead
+    endpoint is started via `systemctl --user start llm@<id>` and we wait for
+    /health. The fleet's idle timer stops it again afterwards, so the GPU is
+    only held while cards are actually being written. Without LLM_FLEET_ID
+    this is a no-op and the request just fails as before.
+    """
+    global _llm_ready
+    fleet_id = os.environ.get('LLM_FLEET_ID')
+    if _llm_ready or not fleet_id:
+        return
+    base = url.split('/v1/')[0]
+    def healthy():
+        try:
+            return requests.get(f"{base}/health", timeout=3).ok
+        except requests.RequestException:
+            return False
+    if not healthy():
+        # cron has no user-session env; systemctl --user needs the runtime dir.
+        env = dict(os.environ)
+        env.setdefault('XDG_RUNTIME_DIR', f"/run/user/{os.getuid()}")
+        print(f"  LLM: starting llm@{fleet_id} ...")
+        subprocess.run(['systemctl', '--user', 'start', f'llm@{fleet_id}'], env=env, check=False)
+        for _ in range(60):  # ~3 min budget for a cold load
+            if healthy():
+                break
+            time.sleep(3)
+        else:
+            raise RuntimeError(f"llm@{fleet_id} did not become healthy at {base}")
+    _llm_ready = True
+
 def ask_claude(prompt, system=None, max_tokens=1024, temperature=0.8):
     """Generate text via an OpenAI-compatible chat completions endpoint."""
     url, token, model = _get_llm_config()
-    
+    _ensure_llm(url)
+
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
-    
+
     resp = requests.post(
         url,
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
@@ -121,6 +157,7 @@ def _post_to_discord(data):
             'git_log': '📟 git log --oneline',
             'apophenia': '🔮 Apophenia Machine',
             'midnight_postcard': '🌙 Midnight Postcard',
+            'painting': '🖼 Midday Museum',
             'dead_medium': '📼 The Dead Medium',
             'the_diff': '📝 The Diff',
             'typeface': '🔤 Typeface of the Week',
@@ -158,6 +195,16 @@ def _post_to_discord(data):
                 parts.append(data['image'])
             if data.get('photographer'):
                 parts.append(f"-# Photo: {data['photographer']}")
+        elif card_type == 'painting':
+            if data.get('title') or data.get('artist'):
+                parts.append(f"*{data.get('title', '')}* — **{data.get('artist', '')}**")
+            bits = [b for b in (data.get('date'), data.get('medium'), data.get('origin')) if b]
+            if bits:
+                parts.append(' · '.join(bits))
+            if data.get('image'):
+                parts.append(data['image'])
+            if data.get('museum'):
+                parts.append(f"-# {data['museum']}")
         elif card_type == 'music_rec':
             if data.get('artist'):
                 parts.append(f"**{data.get('track', '')}** by **{data['artist']}**")

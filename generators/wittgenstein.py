@@ -43,16 +43,16 @@ def generate():
 
 "{text}"
 
-Write 2-4 sentences connecting this to something contemporary — LLMs, computational linguistics,
-memes, internet culture, programming, or the hypothesis that distributional patterns encode 
-culturally-specific attentional structures. Be genuinely insightful, not forced.
-If the connection is a stretch, pick a different angle — philosophy of mind, mathematics,
-the nature of representation, whatever the proposition actually invites.
+Write 2-4 sentences on what this proposition actually says and why it is strange or
+interesting. Most days, stay with the idea itself — logic, pictures, representation,
+mathematics, the limits of language, ordinary life. Only occasionally (and only if it is
+genuinely illuminating) reach for something contemporary like programming or language
+models; never force it, and never use tech metaphors as a punchline.
 
-Use monospace/code-like language where it fits naturally. Be direct and a little wry.
+Be direct, concrete, and a little wry.
 No intro, no "This proposition...", just the commentary. Under 80 words."""
 
-    system = "You are a philosophy commentator with deep knowledge of Wittgenstein, language models, and computational linguistics. Your commentary is sharp, surprising, and connects old ideas to new technology without being gimmicky."
+    system = "You are a philosophy commentator with deep knowledge of Wittgenstein, language models, and computational linguistics. Your commentary is sharp, plainspoken, and surprising; you explain hard ideas without jargon and without gimmicks."
 
     commentary = ask_claude(prompt, system=system, max_tokens=300, temperature=0.85)
 

@@ -14,6 +14,7 @@ SCHEDULE = {
     'corpus_surprise': 'daily',
     'entropy_garden': 'daily',
     'git_log': 'daily',
+    'painting': 'daily',
     'midnight_postcard': 'daily',
 
     # 3x/week (Mon, Wed, Fri)

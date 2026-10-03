@@ -93,9 +93,9 @@ Write 3-5 sentences exploring what this word reveals about the culture that crea
 What does it mean that English doesn't have this word? What does its existence tell us 
 about how speakers of {entry['language'].split('(')[0].strip()} carve up experience differently?
 
-Connect it, if natural, to computational linguistics — how would a distributional model 
-trained on this language represent this concept vs. one trained on English? 
-What would the embedding space look like?
+Ground it in concrete scenes — when would someone actually say this word, and to whom?
+Avoid abstract filler ("ontological category", "conceptualization"); no talk of embeddings
+or computational models.
 
 End with a provocative question (italicized). Keep it under 120 words.
 No intro like "This word..." — start in the middle of the idea."""

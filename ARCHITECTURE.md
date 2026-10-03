@@ -34,6 +34,7 @@ noosphere/
 │   ├── apophenia.py       # ⟁ Apophenia Machine
 │   ├── dead_medium.py     # ✝ The Dead Medium
 │   ├── midnight_postcard.py # 🌙 Midnight Postcard
+│   ├── painting.py        # 🖼 Midday Museum (public-domain art, Art Institute of Chicago)
 │   ├── git_log.py         # $ git log --oneline
 │   ├── penny_red.py       # 📍 The Penny Red
 │   ├── the_diff.py        # ⟺ The Diff
@@ -43,7 +44,7 @@ noosphere/
 │   ├── monthly_playlist.py # 📻 Monthly Playlist (1st of month, compiles recs)
 │   └── data/
 │       ├── tractatus.json          # 513 propositions
-│       ├── russian-sentences.json  # 122 literary sentences
+│       ├── russian-sentences.json  # 164 literary sentences
 │       ├── literary-passages.json  # 566 paragraphs from 20 novels
 │       ├── taste-profile.json       # Spotify listening profile for music recs
 │       └── corpus-*.txt            # Leipzig corpora (not in git, ~130K lines)
@@ -102,7 +103,7 @@ State files are `.gitignored` (they're runtime state, not source).
 
 Defined in `schedule.py`. Days are 0=Monday through 6=Sunday:
 
-- **Daily**: weather, wittgenstein, russian, corpus_surprise, entropy_garden, git_log, midnight_postcard
+- **Daily**: weather, wittgenstein, russian, corpus_surprise, entropy_garden, git_log, painting, midnight_postcard
 - **MWF**: untranslatable
 - **Tue/Thu**: apophenia
 - **Tue/Sat**: penny_red

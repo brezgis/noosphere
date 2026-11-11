@@ -57,6 +57,10 @@ noosphere/
 
 Configuration: `NOOSPHERE_DISCORD_CHANNEL` env var for the channel ID, Discord bot token from OpenClaw config or environment.
 
+## v2 streams (November 2026)
+
+The generators were rewritten so that card text comes from sources, not from the model. New cards carry `"v": 2`. `utils.py` holds the shared source helpers (`wiki_summary`, `wiki_section`, `wiktionary_definitions`, `wiktionary_etymology`, `translate`, `try_llm`, `clip`) and `SourceUnavailable`, which a generator catches to write nothing and retry on the next run. New generators: `language.py` (WALS, data built by `build_wals.py`), `poem.py` (PoetryDB) and `link.py` (RSS). `data/wiki-titles.json` pins the Wikipedia article for each dead medium and each place. `echoes.py` strips model-written fields from v1 cards before reblogging them. The frontend lives in `public/index.html`, `style.css`, `app.js` and `garden.js`, and `build.sh` builds the static site that `export.sh` uploads. The sections below describe the older pattern and still apply where they do not mention LLM commentary.
+
 ## Generator Pattern
 
 Every generator follows the same structure:

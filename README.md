@@ -8,47 +8,50 @@ Named after [Vernadsky's concept](https://en.wikipedia.org/wiki/Noosphere) of th
 
 ## What It Is
 
-Noosphere is a self-hosted PWA that aggregates 18 independent content streams into a scrollable timeline. Each stream is a Python script that generates one feed card per day (or per week), drawing from real data sources and using an LLM for commentary. Cards accumulate over time — scroll down to see yesterday's, last week's.
+Noosphere is a self-hosted feed that looks like a Tumblr dashboard from 2013 with one reader. Each stream is a Python script that behaves like a blog the dashboard follows: it posts one card a day (or a week) on its own schedule. Cards accumulate, and the site keeps the last 500.
 
-Think of it as RSS meets social media meets a curated zine, generated fresh every morning.
+Every stream quotes a real source. The local language model has two small jobs left: it translates the Russian and corpus sentences into English (labelled as machine translation), and it proposes artist names for the music stream, which are then checked against Spotify. A card is written whether or not the model is running.
 
-## The 18 Streams
+## The 21 Streams
 
-| Stream | Cadence | Source |
-|--------|---------|--------|
-| ☁ **Lyrical Weather** | Daily | Live weather API + LLM prose |
-| ◇ **Wittgenstein's Ladder** | Daily | All 513 Tractatus propositions, sequential |
-| 🇷🇺 **Русский Час** | Daily | 164 curated Russian literary sentences + morphological analysis |
-| ✦ **The Untranslatable** | 3x/week | 50 untranslatable words from ~15 languages |
-| ⟐ **Corpus Surprise** | Daily | Random sentence from 130K real corpus sentences (13 languages) |
-| ✎ **Annotation Layer** | Weekly | 566 real passages from 20 Project Gutenberg novels + margin notes |
-| ⌬ **Entropy Garden** | Daily | Live generative art (DLA, flow fields, cellular automata, Game of Life) |
-| ⟁ **Apophenia Machine** | 2x/week | Two unrelated things juxtaposed — Wikipedia + arxiv + real public-domain poems (PoetryDB) + history |
-| ✝ **The Dead Medium** | Weekly | 61 defunct communication technologies with elegies |
-| 🖼 **Midday Museum** | Daily | A public-domain painting from the Art Institute of Chicago — placed midday to break up the text feeds |
-| 🌙 **Midnight Postcard** | Daily | A single atmospheric photograph from Unsplash, no caption |
-| $ **git log --oneline** | Daily | Recent commits from 30+ watched open-source repos |
-| 📍 **The Penny Red** | 2x/week | 46 renamed/erased/contested places with toponymic analysis |
-| ⟺ **The Diff** | Weekly | Same passage in 2-3 languages, side by side, with translation analysis |
-| ◈ **Typeface of the Week** | Weekly | A typeface drawn from Wikipedia's typeface categories, with its story |
-| 🍳 **Recipe** | Weekly | Real recipe from TheMealDB + etymology of a key ingredient |
-| 🎵 **You Should Hear This** | Daily | Claude-powered music discovery + Spotify search, skips liked songs |
-| 📻 **Monthly Playlist** | Monthly (1st) | Compiles daily recs + curated picks into a Spotify playlist |
+| Blog | Post type | Cadence | Source |
+|------|-----------|---------|--------|
+| **lyrical-weather** | text | Daily | National Weather Service forecast and the Boston/Norton office's key messages |
+| **wittgensteins-ladder** | quote | Daily | The Tractatus in order, each proposition with the rungs above it |
+| **russkiy-chas** | quote | Daily | 164 curated Russian literary sentences, fixed-table transliteration, machine translation |
+| **corpus-surprise** | quote | Daily | A random sentence from the Leipzig corpora (13 languages), machine translation |
+| **a-language-a-day** | text | Daily | A typological profile from WALS (749 languages, CC BY 4.0) |
+| **open-tabs** | link | Daily | The newest unseen item from a short list of RSS feeds |
+| **git-log-oneline** | chat | Daily | Recent commits from 30 watched repositories (GitHub API) |
+| **midday-museum** | photo | Daily | A public-domain painting from the Art Institute of Chicago |
+| **midnight-postcard** | photo | Daily | One Unsplash photograph, credited |
+| **entropy-garden** | video | Daily | A seeded canvas simulation drawn in the browser |
+| **you-should-hear-this** | audio | Daily | A song near an artist already in the library, verified on Spotify |
+| **the-untranslatable** | text | Mon, Wed, Fri | 49 curated words with their Wiktionary senses |
+| **the-night-poem** | text | Tue, Thu, Sun | A short public-domain poem from PoetryDB |
+| **apophenia-machine** | link | Tue, Thu | Two unrelated real items (Wikipedia, arXiv, PoetryDB, On This Day) |
+| **the-penny-red** | text | Tue, Sat | 46 renamed places with the name section of their Wikipedia article |
+| **the-diff** | chat | Monday | One passage in two to four languages, from a curated list of 20 |
+| **typeface-of-the-week** | photo | Wednesday | A typeface from Wikipedia with its specimen image |
+| **the-recipe-box** | photo | Wednesday | A recipe from TheMealDB as published, plus one ingredient's Wiktionary etymology |
+| **the-dead-medium** | text | Friday | 61 defunct media with the lead of their Wikipedia article |
+| **commonplace-book** | text | Sunday | A paragraph from one of 20 Project Gutenberg novels |
+| **monthly-mixtape** | audio | 1st of the month | Last month's daily songs as one tracklist |
+
+A daily **echo** also reblogs one older card so the top of the feed never goes stale.
 
 ## Data Sources
 
-All content is sourced from real, open data:
+- **National Weather Service** (api.weather.gov) for the forecast and forecast discussion
+- **WALS Online** (Dryer & Haspelmath 2013, CC BY 4.0), prebuilt into `generators/data/wals.json` by `generators/build_wals.py`
+- **Wikipedia and Wiktionary** for article leads, name sections, definitions and etymologies
+- **Leipzig Corpora Collection**, **Project Gutenberg**, **PoetryDB**, **TheMealDB**, **Art Institute of Chicago**, **Unsplash**, **GitHub**, **Spotify**, **arXiv**
 
-- **Leipzig Corpora Collection** — 130,000 sentences across English, Russian, French, Spanish, German, Japanese, Arabic, Turkish, Portuguese, Italian, Polish, Chinese
-- **Project Gutenberg** — 513 Tractatus propositions, 566 literary passages from 20 novels (Austen to Pynchon)
-- **TheMealDB** — Real recipes with photos and ingredient lists
-- **Unsplash API** — Atmospheric photographs with proper attribution
-- **GitHub API** — Live commit feeds from watched repositories
-- **wttr.in** — Weather data
+Requests use a generic client name and carry no personal details.
 
-LLM commentary is generated via any OpenAI-compatible API endpoint (Claude, GPT, local models, etc.).
+When a Wikipedia or Wiktionary request fails, the stream writes nothing and leaves its state alone, so the next scheduled run tries the same item again.
 
-For a local llama.cpp server that shouldn't hold the GPU all day, set `LLM_FLEET_ID` to a systemd user unit instance (`llm@<id>`): `ask_claude()` starts it on demand when the endpoint is down and waits for `/health`; an idle timer can stop it again.
+For a local llama.cpp server that shouldn't hold the GPU all day, set `LLM_FLEET_ID` to a systemd user unit instance (`llm@<id>`): `ask_claude()` starts it on demand when the endpoint is down and waits for `/health`; an idle timer can stop it again. Set `NOOSPHERE_NO_LLM=1` to skip the model entirely.
 
 ## Discord Cross-Posting
 
@@ -70,12 +73,12 @@ If no Discord credentials are found, cross-posting is silently skipped — feed 
 ├─────────────────────────────────────┤
 │        public/index.html             │
 │        PWA frontend                  │
-│        18 card type renderers        │
-│        Catppuccin Mocha theme        │
+│        7 post types, 21 streams      │
+│        2013 dashboard theme          │
 │        service worker + offline      │
 ├─────────────────────────────────────┤
 │        generators/                   │
-│        18 Python scripts             │
+│        22 Python scripts             │
 │        run daily via cron            │
 │        each writes one JSON to feed/ │
 │        schedule.py controls cadence  │
@@ -186,15 +189,22 @@ Set up a cron job or scheduled task to run generators daily:
 
 ## Frontend
 
-Single-page vanilla JS app. No framework, no build step.
+Vanilla JS with no framework and no build step: `public/index.html`, `style.css`, `app.js` and `garden.js`.
 
-- **Catppuccin Mocha** dark theme
-- **Courier Prime** (body) + **EB Garamond** (headers)
-- **18 distinct card types** with unique styling
-- **Sidebar** for filtering by stream type and regex search
-- **Entropy Garden** cards render live `<canvas>` animations (DLA frost crystals, flow fields, cellular automata, Game of Life)
-- **PWA** with service worker for offline support and home screen install
-- Auto-refreshes every 5 minutes
+- The page is laid out like a 2013 Tumblr dashboard: a 540px post column, a square avatar beside each post, and a sidebar that lists the blogs being followed.
+- Each stream maps to one of seven post types (text, photo, quote, link, chat, audio, video). The post-type bar at the top filters the feed by type.
+- Echo cards render as reblogs. The heart under a post is a real like, kept in the browser's local storage, and a liked post shows one note.
+- Tags come from each card's own metadata and filter the feed when clicked. There is also search, an archive grid, a random-post link and permalinks (`#/post/<id>`).
+- The keys J and K move between posts, L likes one, and / opens search.
+- Three themes share the layout: Dashboard, Pale and Midnight.
+- Cards written before the v2 streams still render. Their model-written commentary is shown in smaller grey type.
+
+To preview locally without uploading anything:
+
+```bash
+INCLUDE_SCHEDULED=1 bash build.sh .preview   # builds the static site, including cards scheduled for later today
+python3 -m http.server 8951 --directory .preview
+```
 
 ## Content Pool Sizes
 
@@ -236,7 +246,7 @@ local server                           VPS
 
 1. **Cron job** runs `export.sh` every 5 minutes
 2. `export.sh` runs the Python generators (idempotent — skip if today's cards exist)
-3. Builds a static `/api/feed` JSON file from the feed directory (latest 500 items)
+3. `build.sh` builds the static site with a static `/api/feed` JSON file from the feed directory (latest 500 items)
 4. Copies the PWA frontend + feed JSON to the VPS via SCP
 5. **nginx** serves it as static files over HTTPS (Let's Encrypt)
 
@@ -278,5 +288,7 @@ MIT
 - [Project Gutenberg](https://gutenberg.org) for public domain literature
 - [TheMealDB](https://themealdb.com) for recipe data
 - [Unsplash](https://unsplash.com) for photographs
-- [Catppuccin](https://catppuccin.com) for the color theme
-- [Courier Prime](https://quoteunquoteapps.com/courierprime/) and [EB Garamond](http://www.georgduffner.at/ebgaramond/) for typography
+- [WALS Online](https://wals.info) for typological data (CC BY 4.0)
+- [National Weather Service](https://www.weather.gov) for forecasts
+- [Wikipedia](https://en.wikipedia.org) and [Wiktionary](https://en.wiktionary.org) for article text
+- [Young Serif](https://fonts.google.com/specimen/Young+Serif) for the wordmark

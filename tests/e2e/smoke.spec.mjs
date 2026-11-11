@@ -31,9 +31,14 @@ test('noosphere loads without JS errors', async ({ page }) => {
   // Create mock API response so fetch('/api/feed') doesn't blow up
   const apiDir = path.join(publicDir, 'api');
   if (!existsSync(apiDir)) mkdirSync(apiDir, { recursive: true });
-  writeFileSync(path.join(apiDir, 'feed'), JSON.stringify([
-    { id: 'test-1', title: 'Test Item', url: 'https://example.com', source: 'test', date: new Date().toISOString(), summary: 'A test feed item.' }
-  ]));
+  writeFileSync(path.join(apiDir, 'feed'), JSON.stringify({
+    count: 3,
+    items: [
+      { type: 'wittgenstein', v: 2, timestamp: '2026-01-02T08:00:00', number: '1', proposition: 'The world is all that is the case.', ladder: [] },
+      { type: 'the_diff', timestamp: '2026-01-01T09:00:00', title: 'A test', texts: [{ lang: 'English', text: 'Hello.' }], commentary: 'Old <em>model</em> text <script>window.__xss = 1</script>' },
+      { type: 'something_new', timestamp: '2026-01-01T07:00:00', title: 'An unknown stream', body: 'It still renders.' },
+    ],
+  }));
 
   const port = await getRandomPort();
   const server = spawn('python3', ['-m', 'http.server', String(port)], {
@@ -62,6 +67,13 @@ test('noosphere loads without JS errors', async ({ page }) => {
     await expect(page.locator('#feed')).toBeAttached();
     await expect(page.locator('#sidebar')).toBeAttached();
     await expect(page.locator('#menuBtn')).toBeAttached();
+    await expect(page.locator('#typebar a')).toHaveCount(7);
+    await expect(page.locator('.post')).toHaveCount(3);
+    expect(await page.evaluate(() => window.__xss)).toBeUndefined();
+
+    // Liking a post gives it one note.
+    await page.locator('.post .like').first().click();
+    await expect(page.locator('.post .notes').first()).toHaveText('1 note');
 
     const realErrors = errors.filter(e => !isExpectedError(e));
 

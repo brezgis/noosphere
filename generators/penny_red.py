@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""The Penny Red — a renamed, erased, or contested place. What used to be here?
+"""The Penny Red. A renamed, erased or contested place, twice a week.
 
-Uses real toponymy data: renamed cities, erased indigenous names, 
-politically contested places, disappeared towns.
+The one-line gloss comes from the curated list below. The names and the
+Wikipedia article for each place are pinned in data/wiki-titles.json, and the
+paragraph on the card is that article's own section on the name (or its lead
+when it has no such section). No model writes anything.
 """
 import json, os, random
-from utils import ask_claude, today, write_feed, feed_exists
+from utils import today, write_feed, feed_exists, wiki_summary, wiki_section, clip, SourceUnavailable
 
 # Curated list of renamed/erased/contested places
 PLACES = [
@@ -58,22 +60,32 @@ PLACES = [
 ]
 
 STATE_FILE = os.path.join(os.path.dirname(__file__), '.penny-red-state.json')
+TITLES_FILE = os.path.join(os.path.dirname(__file__), 'data', 'wiki-titles.json')
 
-def get_next_place():
-    state = {}
-    if os.path.exists(STATE_FILE):
+# Section headings that usually hold the story of a name, best first.
+NAME_SECTIONS = ['Etymology', 'Toponymy', 'Name', 'Naming', 'Nomenclature']
+
+
+def load_used():
+    try:
         with open(STATE_FILE) as f:
-            state = json.load(f)
-    used = set(state.get('used', []))
+            return set(json.load(f).get('used', []))
+    except (FileNotFoundError, json.JSONDecodeError, ValueError):
+        return set()
+
+
+def pick_index(used):
     available = [i for i in range(len(PLACES)) if i not in used]
-    if not available:
-        used = set()
-        available = list(range(len(PLACES)))
-    idx = random.choice(available)
+    return random.choice(available or list(range(len(PLACES))))
+
+
+def mark_used(used, idx):
+    if len(used) >= len(PLACES) - 1 and idx not in used:
+        used = set()  # the pool is exhausted, so the cycle starts again
     used.add(idx)
     with open(STATE_FILE, 'w') as f:
-        json.dump({'used': list(used)}, f)
-    return PLACES[idx]
+        json.dump({'used': sorted(used)}, f)
+
 
 def generate():
     name = f"{today()}-penny-red"
@@ -81,34 +93,39 @@ def generate():
         print(f"Already exists: {name}")
         return
 
-    place = get_next_place()
+    used = load_used()
+    idx = pick_index(used)
+    place = PLACES[idx]
+    with open(TITLES_FILE) as f:
+        display, formerly, article_title = json.load(f)['penny_red'][idx]
 
-    prompt = f"""Write about this renamed/erased/contested place:
+    try:
+        article = wiki_summary(article_title)
+        heading, section = wiki_section(article_title, NAME_SECTIONS)
+    except SourceUnavailable as e:
+        print(f"Source unavailable, will retry on the next run: {e}")
+        return
 
-Current name: {place['current']}
-Former name(s): {place['former']}
-Country: {place['country']}
-Context: {place['hint']}
-
-Write 3-5 sentences about what the name change reveals — about power, memory, identity, 
-or the politics of cartography. Who named it? Who lost their name? What does the old name 
-remember that the new one forgets (or vice versa)?
-
-Be specific and vivid. This is about the human stories compressed into place names.
-Use HTML tags (<em>, <strong>) not markdown. Keep it under 120 words."""
-
-    system = "You are a critical toponymist — someone who reads the politics and grief encoded in place names. Your tone is precise, evocative, and attuned to what maps choose to remember and forget."
-
-    content = ask_claude(prompt, system=system, max_tokens=400, temperature=0.8)
-
-    write_feed(name, {
+    card = {
         "type": "penny_red",
+        "v": 2,
         "timestamp": f"{today()}T11:00:00",
-        "current_name": place['current'],
-        "former_name": place['former'],
+        "name": display,
+        "formerly": formerly,
         "country": place['country'],
-        "content": content,
-    })
+        "gloss": place['hint'],
+    }
+    if section:
+        card["extract"] = clip(section.split('\n')[0] if len(section.split('\n')[0]) > 200 else section, 560)
+        card["section"] = heading
+    elif article:
+        card["extract"] = clip(article['extract'], 560)
+    if article:
+        card["wiki_title"] = article['title']
+        card["url"] = article['url']
+    write_feed(name, card)
+    mark_used(used, idx)
+
 
 if __name__ == '__main__':
     generate()

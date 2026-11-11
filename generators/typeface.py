@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Typeface of the Week — fetches a real typeface from Wikipedia with its story.
+"""Typeface of the Week. A real typeface from Wikipedia's typeface categories.
 
-Pulls from Wikipedia's typeface categories, gets the article summary,
-then has Claude write commentary about it.
+The card shows the specimen image and the lead of the article. No model
+writes anything.
 """
 import json, os, random, requests
-from utils import ask_claude, today, write_feed, feed_exists
+from utils import today, write_feed, feed_exists, clip
 
-HEADERS = {"User-Agent": "Noosphere/1.0 (personal feed)"}
+HEADERS = {"User-Agent": "NoosphereFeed/2.0 (personal reading feed)"}
 
 # Wikipedia categories to sample from
 CATEGORIES = [
@@ -126,27 +126,13 @@ def generate():
     # Clean the title (remove "(typeface)" suffix for display)
     display_name = title.replace(" (typeface)", "").replace(" (font)", "")
 
-    prompt = f"""Write about this typeface based on its Wikipedia summary:
-
-Name: {display_name}
-Description: {article['description']}
-Summary: {article['extract'][:600]}
-
-Write 3-5 sentences about the typeface. Focus on the STORY — who made it, why, what world
-it was born into, and what it says about the era that needed it. If there's drama, scandal,
-or irony, lean into it. What does using this typeface mean today?
-
-Use HTML tags (<em>, <strong>) not markdown. Keep it under 120 words."""
-
-    system = "You are a type historian who believes typefaces are portraits of their time — each one encodes the anxieties, aspirations, and aesthetics of the era that produced it."
-
-    content = ask_claude(prompt, system=system, max_tokens=400, temperature=0.85)
-
     write_feed(name, {
         "type": "typeface",
+        "v": 2,
         "timestamp": f"{today()}T09:30:00",
         "font_name": display_name,
-        "content": content,
+        "description": article["description"],
+        "extract": clip(article["extract"], 560),
         "wikipedia_url": article["url"],
         "thumbnail": article.get("thumbnail", ""),
     })

@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""The Apophenia Machine — juxtapose two unrelated things and ask 'what connects these?'
+"""The Apophenia Machine. Two unrelated real things, side by side.
 
-Pulls from Wikipedia random article API + arxiv API + Poetry Foundation + misc sources.
+Pulls from Wikipedia's random article API, arXiv, PoetryDB and Wikipedia's On
+This Day feed. The card asks what connects them and leaves the answer to the
+reader. (The model used to answer, and its answers were filler.)
 """
 import requests, random, json, re
+from utils import UA
 from datetime import date
-from utils import ask_claude, today, write_feed, feed_exists
+from utils import today, today_date, write_feed, feed_exists
 
 def truncate_sentence(text, max_chars=350):
     """Truncate text at the last complete sentence within max_chars."""
@@ -25,7 +28,7 @@ def get_wikipedia_random():
     """Get a random Wikipedia article summary."""
     resp = requests.get(
         'https://en.wikipedia.org/api/rest_v1/page/random/summary',
-        headers={'User-Agent': 'Noosphere/1.0 (personal feed)'},
+        headers=UA,
         timeout=10,
     )
     resp.raise_for_status()
@@ -45,16 +48,18 @@ def get_arxiv_random():
                   'nlin.AO', 'cs.SI', 'econ.GN']
     cat = random.choice(categories)
     resp = requests.get(
-        f'http://export.arxiv.org/api/query?search_query=cat:{cat}&sortBy=submittedDate&sortOrder=descending&start={random.randint(0,50)}&max_results=1',
-        timeout=10,
+        f'https://export.arxiv.org/api/query?search_query=cat:{cat}&sortBy=submittedDate&sortOrder=descending&start={random.randint(0,50)}&max_results=1',
+        headers=UA, timeout=20,
     )
     resp.raise_for_status()
     # Parse XML (simple extraction)
     text = resp.text
     title_match = re.search(r'<title>([^<]+)</title>', text[text.find('<entry>'):] if '<entry>' in text else '')
+    if not title_match:
+        raise ValueError('arXiv returned no entry')
     summary_match = re.search(r'<summary>([^<]+)</summary>', text)
     
-    title = title_match.group(1).strip() if title_match else 'Untitled'
+    title = ' '.join(title_match.group(1).split())
     summary = summary_match.group(1).strip()[:300] if summary_match else ''
     summary = ' '.join(summary.split())  # normalize whitespace
     
@@ -62,6 +67,7 @@ def get_arxiv_random():
     entry_text = text[text.find('<entry>'):] if '<entry>' in text else ''
     id_match = re.search(r'<id>(https?://[^<]+)</id>', entry_text)
     url = id_match.group(1).strip() if id_match else ''
+    url = re.sub(r'v\d+$', '', url.replace('http://', 'https://'))
     
     return {
         'type': 'arxiv',
@@ -78,7 +84,7 @@ def get_poem_fragment():
     real poet. PoetryDB serves actual texts, so the quote is always genuine.
     """
     for _ in range(5):
-        resp = requests.get('https://poetrydb.org/random/1', timeout=15)
+        resp = requests.get('https://poetrydb.org/random/1', headers=UA, timeout=15)
         resp.raise_for_status()
         poem = resp.json()[0]
         # split into stanzas, pick one, take 2-4 consecutive lines from it
@@ -101,8 +107,8 @@ def get_poem_fragment():
             continue
         return {
             'type': 'poem',
-            'title': 'Poetry Fragment',
-            'content': '\n'.join(lines) + f"\n— {poem['author']}, '{poem['title']}'",
+            'title': f"{poem['author']}, “{poem['title']}”",
+            'content': '\n'.join(lines),
         }
     raise RuntimeError('PoetryDB returned nothing usable')
 
@@ -113,10 +119,10 @@ def get_historical_fact():
     invented plausible-sounding but fictional events. On This Day returns real,
     sourced events with a Wikipedia link — no fabrication.
     """
-    d = date.today()
+    d = today_date()
     resp = requests.get(
         f'https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/{d.month:02d}/{d.day:02d}',
-        headers={'User-Agent': 'Noosphere/1.0 (personal feed)'},
+        headers=UA,
         timeout=10,
     )
     resp.raise_for_status()
@@ -130,7 +136,7 @@ def get_historical_fact():
     url = page.get('content_urls', {}).get('desktop', {}).get('page', '')
     year = ev.get('year', '')
     when = f"{d:%B} {d.day}"
-    title = f"{year} — On This Day ({when})" if year else f"On This Day ({when})"
+    title = f"{when}, {year}" if year else when
 
     return {
         'type': 'history',
@@ -173,43 +179,16 @@ def generate():
         print("Couldn't get two items")
         return
 
-    # Generate the connection
-    a_desc = f"{items[0]['title']}: {items[0]['content']}"
-    b_desc = f"{items[1]['title']}: {items[1]['content']}"
-    connection_prompt = f"""Two seemingly unrelated items:
-A) {a_desc}
-B) {b_desc}
-
-Write a surprising, insightful 2-3 sentence connection between these two things. Be creative — find a genuine conceptual thread, not a forced analogy. No preamble, just the connection."""
-
-    try:
-        connection = ask_claude(connection_prompt, max_tokens=200, temperature=0.9).strip()
-    except Exception as e:
-        print(f"Failed to generate connection: {e}")
-        connection = ""
-
-    def make_title_html(item):
-        title = item['title']
-        url = item.get('url', '')
-        if url:
-            return f'<a href="{url}" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.2);">{title}</a>'
-        else:
-            return title
-
     write_feed(name, {
         "type": "apophenia",
+        "v": 2,
         "timestamp": f"{today()}T14:00:00",
-        "item_a": {
-            "type": items[0]['type'],
-            "content": f"<strong>{make_title_html(items[0])}</strong><br><br>{items[0]['content']}",
-            "url": items[0].get('url', ''),
-        },
-        "item_b": {
-            "type": items[1]['type'],
-            "content": f"<strong>{make_title_html(items[1])}</strong><br><br>{items[1]['content']}",
-            "url": items[1].get('url', ''),
-        },
-        "connection": connection,
+        "items": [{
+            "kind": it['type'],
+            "title": it['title'],
+            "text": it['content'],
+            "url": it.get('url', ''),
+        } for it in items],
         "prompt": "What connects these?",
     })
 

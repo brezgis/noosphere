@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
-"""The Dead Medium — weekly profile of a defunct or dying communication technology."""
+"""The Dead Medium. A weekly entry for a defunct or dying communication technology.
+
+The name, dates and one-line gloss come from the curated list below. The
+paragraph is the lead of the matching Wikipedia article (titles are pinned in
+data/wiki-titles.json so the lookup cannot drift). No model writes anything.
+"""
 import json, os, random
-from utils import ask_claude, today, write_feed, feed_exists
+from utils import today, write_feed, feed_exists, wiki_summary, clip, SourceUnavailable
 
 # Curated list of dead/dying media — enough for ~2 years at weekly cadence
 MEDIA = [
@@ -69,22 +74,29 @@ MEDIA = [
 ]
 
 STATE_FILE = os.path.join(os.path.dirname(__file__), '.dead-medium-state.json')
+TITLES_FILE = os.path.join(os.path.dirname(__file__), 'data', 'wiki-titles.json')
 
-def get_next_medium():
-    state = {}
-    if os.path.exists(STATE_FILE):
+
+def load_used():
+    try:
         with open(STATE_FILE) as f:
-            state = json.load(f)
-    used = set(state.get('used', []))
+            return set(json.load(f).get('used', []))
+    except (FileNotFoundError, json.JSONDecodeError, ValueError):
+        return set()
+
+
+def pick_index(used):
     available = [i for i in range(len(MEDIA)) if i not in used]
-    if not available:
-        used = set()
-        available = list(range(len(MEDIA)))
-    idx = random.choice(available)
+    return random.choice(available or list(range(len(MEDIA))))
+
+
+def mark_used(used, idx):
+    if len(used) >= len(MEDIA) - 1 and idx not in used:
+        used = set()  # the pool is exhausted, so the cycle starts again
     used.add(idx)
     with open(STATE_FILE, 'w') as f:
-        json.dump({'used': list(used)}, f)
-    return MEDIA[idx]
+        json.dump({'used': sorted(used)}, f)
+
 
 def generate():
     name = f"{today()}-dead-medium"
@@ -92,34 +104,35 @@ def generate():
         print(f"Already exists: {name}")
         return
 
-    medium = get_next_medium()
+    used = load_used()
+    idx = pick_index(used)
+    medium = MEDIA[idx]
+    with open(TITLES_FILE) as f:
+        titles = json.load(f)['dead_medium']
+    try:
+        article = wiki_summary(titles[idx]) if idx < len(titles) and titles[idx] else None
+    except SourceUnavailable as e:
+        print(f"Source unavailable, will retry on the next run: {e}")
+        return
 
-    prompt = f"""Write a short elegy for this dead or dying communication technology:
-
-Name: {medium['name']}
-Active: {medium['dates']}
-What it was: {medium['hint']}
-
-Write 3-5 sentences. Focus on what was LOST when it died — not just what replaced it, 
-but what quality of human connection or experience disappeared with it. 
-Be specific and sensory. What did it sound like, feel like, smell like to use?
-
-End with one sentence connecting it to something contemporary — what would this technology 
-think of how we communicate now?
-
-Use HTML tags (<em>, <strong>) not markdown. Keep it under 120 words."""
-
-    system = "You are a media archaeologist who writes eulogies for dead technologies. Your tone is elegiac but not sentimental — you mourn what was lost while acknowledging why things changed. You notice the sensory and social dimensions that history books skip."
-
-    content = ask_claude(prompt, system=system, max_tokens=400, temperature=0.85)
-
-    write_feed(name, {
+    card = {
         "type": "dead_medium",
+        "v": 2,
         "timestamp": f"{today()}T10:00:00",
         "title": medium['name'],
         "dates": medium['dates'],
-        "content": content,
-    })
+        "gloss": medium['hint'],
+    }
+    if article:
+        card.update({
+            "extract": clip(article['extract'], 520),
+            "wiki_title": article['title'],
+            "url": article['url'],
+            "image": article['thumbnail'],
+        })
+    write_feed(name, card)
+    mark_used(used, idx)
+
 
 if __name__ == '__main__':
     generate()

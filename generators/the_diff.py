@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """The Diff — the same passage in two (or three) languages, side by side.
 
-Uses real public domain translations from Project Gutenberg + curated pairs.
-Highlights what changes in translation — what each language must say, can't say, or chooses to say differently.
+The passages come from the curated list below and are shown side by side with
+no commentary. The reader does the diffing.
 """
 import json, os, random
-from utils import ask_claude, today, write_feed, feed_exists
+from utils import today, write_feed, feed_exists
 
 # Curated parallel passages — famous texts where translation reveals something
 PAIRS = [
@@ -196,35 +196,14 @@ def generate():
         return
 
     pair = get_next_pair()
-
-    texts_formatted = "\n\n".join([f"[{t['lang']}]: \"{t['text']}\"" for t in pair['texts']])
-
-    prompt = f"""These are translations of the same passage:
-
-{texts_formatted}
-
-Source: {pair['title']}
-
-Write 2-4 sentences about what the translations reveal. What does each language HAVE to say 
-that the others don't? What choices did the translators make, and what do those choices 
-encode about how each language (or translator) sees the world?
-
-Focus on specific linguistic phenomena: word order, tense/aspect, articles, 
-formality registers, untranslatable words, or where translators diverged and why.
-
-Use HTML tags (<em>, <strong>) not markdown. Keep it under 100 words."""
-
-    system = "You are a translation theorist who sees the gap between languages as the most interesting place in the world. You notice what each language is forced to commit to that others can leave ambiguous."
-
-    commentary = ask_claude(prompt, system=system, max_tokens=350, temperature=0.8)
-
     write_feed(name, {
         "type": "the_diff",
+        "v": 2,
         "timestamp": f"{today()}T09:00:00",
         "title": pair['title'],
         "texts": pair['texts'],
-        "commentary": commentary,
     })
+
 
 if __name__ == '__main__':
     generate()

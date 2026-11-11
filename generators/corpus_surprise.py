@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""The Corpus Surprise — real sentence from a multilingual linguistic corpus with Claude commentary.
+"""The Corpus Surprise. One real sentence sampled from a multilingual corpus.
+
+The sentence is shown as found. For languages other than English the local
+model adds a plain translation, and that is its only job here.
 
 Uses Leipzig Corpora Collection data (130K+ sentences across 13 languages):
 English (news, Wikipedia), Russian, French, Spanish, German, Japanese, 
 Arabic, Turkish, Portuguese, Italian, Polish, Chinese.
 """
 import os, random, json
-from utils import ask_claude, today, write_feed, feed_exists
+from utils import today, write_feed, feed_exists, translate
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
@@ -80,40 +83,23 @@ def generate():
         return
 
     lang = corpus_info['language']
-    
-    prompt = f"""This sentence was randomly sampled from the {corpus_info['corpus']} ({corpus_info['year']}):
 
-"{sentence}"
-
-This is {lang} text. Write 1-2 sentences of linguistic commentary in English about what makes 
-this sentence interesting from a morphological, syntactic, pragmatic, or sociolinguistic perspective. 
-What would a corpus linguist or computational linguist notice? What's revealing about the 
-construction, register, word order, or presuppositions?
-
-If the sentence is not in English, start with a translation on its own line, then leave a blank line, 
-then write the linguistic analysis. Use <br><br> to separate the translation from the analysis.
-
-Keep it under 80 words. Be precise and specific — focus on actual linguistic phenomena
-visible in THIS sentence, in {lang} itself (not in your English translation). Only mention
-features {lang} really has — e.g. never discuss articles for a language without them.
-If you're unsure of a claim, leave it out."""
-
-    system = "You are a multilingual corpus linguist who finds patterns in naturally-occurring language across the world's languages. Your commentary is precise, insightful, and notices things most readers would miss. You can read and analyze text in any major language."
-
-    context = ask_claude(prompt, system=system, max_tokens=250, temperature=0.8)
-
-    genre = "news article" if corpus_info['register'] == 'news' else corpus_info['register']
-    
-    write_feed(name, {
+    card = {
         "type": "corpus_surprise",
+        "v": 2,
         "timestamp": f"{today()}T14:15:00",
         "sentence": sentence,
+        "language": lang,
+        "lang_code": corpus_info['lang_code'],
         "corpus": corpus_info['corpus'],
         "register": corpus_info['register'],
         "year": corpus_info['year'],
-        "genre": genre,
-        "context": context,
-    })
+    }
+    if lang != 'English':
+        translation = translate(sentence, lang)
+        if translation:
+            card["translation"] = translation
+    write_feed(name, card)
 
 if __name__ == '__main__':
     generate()

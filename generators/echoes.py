@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Echoes — the recycled-content stream.
 
-Resurfaces a past *evergreen* card so the feed always has something fresh at the
+Reblogs a past *evergreen* card so the feed always has something fresh at the
 top, even on days when little else is scheduled or generation stalls. The card
-keeps its original type (so the frontend re-renders it natively) and gains an
-"echo" ribbon.
+keeps its original type (so the frontend renders it natively) and is shown as
+a reblog of the stream it came from.
 
 Deliberately dependency-light: no LLM, no network. This is the safety net that
 keeps the noosphere from ever looking dead, so it must work even when the local
@@ -25,18 +25,54 @@ STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.echoes-s
 EVERGREEN = {
     'untranslatable', 'wittgenstein', 'russian', 'corpus_surprise',
     'apophenia', 'dead_medium', 'typeface', 'the_diff', 'diff',
-    'penny_red', 'annotation',
+    'penny_red', 'annotation', 'poem', 'language', 'painting',
 }
 
+# Cards written before the v2 streams carry model-written commentary. When one
+# of those is reblogged, the commentary stays behind and the sourced part
+# travels. Types whose whole body was model text are only reblogged from v2 on.
+LEGACY_STRIP = {
+    'wittgenstein': ['commentary'],
+    'russian': ['breakdown', 'transliteration'],
+    'corpus_surprise': ['context'],
+    'the_diff': ['commentary'],
+    'diff': ['commentary'],
+    'apophenia': ['connection'],
+    'annotation': ['annotations'],
+}
+# A card has to be at least this old before it can come round again.
+MIN_AGE_DAYS = 21
+
+LEGACY_SKIP = {'untranslatable', 'dead_medium', 'typeface', 'penny_red'}
+
+# The tag a reblog gets, tumblr style.
 ECHO_NOTES = [
-    "resurfaced from the archive",
+    "from the archive",
     "worth seeing again",
-    "an echo from {date}",
-    "the noosphere remembers",
-    "pulled back up from {date}",
+    "reblogging my own feed",
     "still thinking about this one",
     "a rerun, lovingly",
+    "queue",
 ]
+
+
+def reblogable(card):
+    """The card as it should travel, or None if it should stay in the archive."""
+    kind = card.get('type')
+    if kind not in EVERGREEN:
+        return None
+    if (card.get('v') or 1) >= 2:
+        return dict(card)
+    if kind in LEGACY_SKIP:
+        return None
+    out = dict(card)
+    for field in LEGACY_STRIP.get(kind, []):
+        out.pop(field, None)
+    if kind == 'annotation':
+        # v1 passages have footnote markers spliced into the text.
+        import re
+        out['text'] = re.sub(r'<sup[^>]*>.*?</sup>', '', out.get('text', ''))
+    return out
 
 
 def load_state():
@@ -85,7 +121,14 @@ def generate():
             continue
         if card.get('echo'):
             continue  # never echo an echo
-        if card.get('type') not in EVERGREEN:
+        try:
+            age = (date.fromisoformat(today()) - date.fromisoformat(fn[:10])).days
+        except ValueError:
+            age = MIN_AGE_DAYS
+        if age < MIN_AGE_DAYS:
+            continue  # too recent to count as a rerun
+        card = reblogable(card)
+        if card is None:
             continue
         candidates.append((fn, card))
 
@@ -108,8 +151,8 @@ def generate():
     echo['echo'] = True
     echo['echo_from'] = date_label(orig_ts)
     echo['echo_source'] = fn
-    note = random.choice(ECHO_NOTES)
-    echo['echo_note'] = note.format(date=echo['echo_from']) if '{date}' in note else note
+    echo['echo_note'] = random.choice(ECHO_NOTES)
+    echo['echo_date'] = orig_ts[:10]
     # Surface near the top of today's feed (morning slot, so it's visible most
     # of the day), but don't re-ping Discord.
     echo['timestamp'] = f"{today()}T08:00:00"

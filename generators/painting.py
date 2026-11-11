@@ -16,7 +16,7 @@ import requests, random
 from utils import today, write_feed, feed_exists
 
 AIC_SEARCH = "https://api.artic.edu/api/v1/artworks/search"
-UA = {"AIC-User-Agent": "Noosphere (personal feed; annabrezgis@gmail.com)"}
+CLIENT = {"AIC-User-Agent": "NoosphereFeed/2.0 (personal reading feed)"}
 
 # Evocative subjects — rotated for day-to-day variety across the collection.
 SUBJECTS = [
@@ -60,7 +60,7 @@ def fetch_candidates(subject, page):
             "limit": 100,
             "page": page,
         },
-        headers=UA,
+        headers=CLIENT,
         timeout=20,
     )
     resp.raise_for_status()
@@ -115,6 +115,8 @@ def generate():
         "credit": art.get("credit_line") or "",
         "source_url": f"https://www.artic.edu/artworks/{art['id']}",
         "alt": thumb.get("alt_text") or art.get("title") or "",
+        "width": thumb.get("width"),
+        "height": thumb.get("height"),
     })
 
 

@@ -1,8 +1,11 @@
-// AUTO_VERSION is replaced by export.sh on each deploy
+// AUTO_VERSION is replaced by build.sh on each deploy
 const CACHE_NAME = 'noosphere-AUTO_VERSION';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/style.css',
+  '/app.js',
+  '/garden.js',
   '/favicon.png',
   '/icon-192.png',
   '/icon-512.png',
@@ -27,25 +30,22 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: network-first for API, cache-first for static
+// Fetch: the network wins whenever it answers, and the cache covers offline.
+// (Cache-first used to pin an old page until the service worker itself was
+// replaced, which made a redesign arrive a visit late.)
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  
-  if (url.pathname.startsWith('/api/')) {
-    // Network-first for feed data
-    event.respondWith(
-      fetch(event.request)
-        .then(resp => {
+  if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
+
+  event.respondWith(
+    fetch(event.request)
+      .then(resp => {
+        if (resp.ok) {
           const clone = resp.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-          return resp;
-        })
-        .catch(() => caches.match(event.request))
-    );
-  } else {
-    // Cache-first for static assets
-    event.respondWith(
-      caches.match(event.request).then(cached => cached || fetch(event.request))
-    );
-  }
+        }
+        return resp;
+      })
+      .catch(() => caches.match(event.request, { ignoreSearch: url.pathname.startsWith('/api/') }))
+  );
 });

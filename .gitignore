@@ -33,3 +33,6 @@ export.log
 
 # Playwright test results
 test-results/
+
+# Local preview build
+.preview/

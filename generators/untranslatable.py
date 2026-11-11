@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
-"""The Untranslatable — words that resist clean translation, with cultural meditation."""
-import json, os, random
-from utils import ask_claude, today, write_feed, feed_exists
+"""The Untranslatable. Words that resist a one-word English gloss.
+
+Each card shows the word, a short gloss from the curated list below, and the
+dictionary senses from the English Wiktionary entry for that word in its own
+language. No model writes anything here.
+"""
+import json, os, random, urllib.parse
+from utils import today, write_feed, feed_exists, wiktionary_definitions, SourceUnavailable
 
 # Seed corpus — deep cuts, not the usual suspects
 WORDS = [
@@ -20,7 +25,6 @@ WORDS = [
     {"word": "ubuntu", "language": "Zulu/Xhosa", "hint": "I am because we are"},
     {"word": "ikigai", "language": "Japanese (生き甲斐)", "hint": "a reason for being"},
     {"word": "Torschlusspanik", "language": "German", "hint": "gate-closing panic, fear of diminishing opportunities"},
-    {"word": "toska", "language": "Russian (тоска)", "hint": "Nabokov: 'No single word in English renders all the shades of toska'"},
     {"word": "jayus", "language": "Indonesian", "hint": "a joke so unfunny it becomes funny"},
     {"word": "Backpfeifengesicht", "language": "German", "hint": "a face that invites a slap"},
     {"word": "aware", "language": "Japanese (哀れ, mono no aware)", "hint": "the pathos of things, gentle sadness of passing"},
@@ -57,26 +61,48 @@ WORDS = [
     {"word": "Zeitgeist", "language": "German", "hint": "spirit of the age — but more alive than 'zeitgeist'"},
 ]
 
+# Where each word lives on en.wiktionary: (page title, language heading).
+# Words missing here are looked up under their own spelling and language.
+WIKTIONARY = {
+    "木漏れ日": ("木漏れ日", "Japanese"),
+    "mamihlapinatapai": ("mamihlapinatapai", "Yagán"),
+    "wabi-sabi": ("侘寂", "Japanese"),
+    "meraki": ("μεράκι", "Greek"),
+    "ubuntu": ("ubuntu", "Zulu"),
+    "ikigai": ("生き甲斐", "Japanese"),
+    "aware": ("哀れ", "Japanese"),
+    "razliubit": ("разлюбить", "Russian"),
+    "litost": ("lítost", "Czech"),
+    "пошлость": ("пошлость", "Russian"),
+    "yugen": ("幽玄", "Japanese"),
+    "shemomedjamo": ("შემომეჭამა", "Georgian"),
+    "forelsket": ("forelsket", "Norwegian Bokmål"),
+    "pochemuchka": ("почемучка", "Russian"),
+    "tsundoku": ("積ん読", "Japanese"),
+    "cafuné": ("cafuné", "Portuguese"),
+    "taarradhin": ("تراضين", "Arabic"),
+    "ilunga": ("ilunga", "Luba-Kasai"),
+    "ya'aburnee": ("يقبرني", "Arabic"),
+}
+
 STATE_FILE = os.path.join(os.path.dirname(__file__), '.untranslatable-state.json')
 
-def get_next_word():
-    if os.path.exists(STATE_FILE):
+
+def load_used():
+    try:
         with open(STATE_FILE) as f:
-            state = json.load(f)
-        used = set(state.get('used', []))
-    else:
-        used = set()
-    
-    available = [i for i in range(len(WORDS)) if i not in used]
-    if not available:
-        used = set()
-        available = list(range(len(WORDS)))
-    
-    idx = random.choice(available)
+            return set(json.load(f).get('used', []))
+    except (FileNotFoundError, json.JSONDecodeError, ValueError):
+        return set()
+
+
+def mark_used(used, idx):
+    if len(used) >= len(WORDS) - 1 and idx not in used:
+        used = set()  # the pool is exhausted, so the cycle starts again
     used.add(idx)
     with open(STATE_FILE, 'w') as f:
-        json.dump({'used': list(used)}, f)
-    return WORDS[idx]
+        json.dump({'used': sorted(used)}, f)
+
 
 def generate():
     name = f"{today()}-untranslatable"
@@ -84,41 +110,31 @@ def generate():
         print(f"Already exists: {name}")
         return
 
-    entry = get_next_word()
-
-    prompt = f"""Write about the untranslatable word "{entry['word']}" ({entry['language']}).
-Approximate meaning: {entry['hint']}
-
-Write 3-5 sentences exploring what this word reveals about the culture that created it.
-What does it mean that English doesn't have this word? What does its existence tell us 
-about how speakers of {entry['language'].split('(')[0].strip()} carve up experience differently?
-
-Ground it in concrete scenes — when would someone actually say this word, and to whom?
-Avoid abstract filler ("ontological category", "conceptualization"); no talk of embeddings
-or computational models.
-
-End with a provocative question (italicized). Keep it under 120 words.
-No intro like "This word..." — start in the middle of the idea."""
-
-    system = "You are a linguistic anthropologist with expertise in lexical typology and computational semantics. Your writing is precise but warm, academic but accessible."
-
-    content = ask_claude(prompt, system=system, max_tokens=400, temperature=0.85)
-    
-    # Extract question if it ends with one
-    lines = content.strip().split('\n')
-    question = None
-    if lines[-1].strip().endswith('?'):
-        question = lines[-1].strip().strip('*').strip('_')
-        content = '\n'.join(lines[:-1]).strip()
+    used = load_used()
+    available = [i for i in range(len(WORDS)) if i not in used]
+    idx = random.choice(available or list(range(len(WORDS))))
+    entry = WORDS[idx]
+    language = entry['language'].split('(')[0].strip()
+    page, wlang = WIKTIONARY.get(entry['word'], (entry['word'], language))
+    try:
+        senses = wiktionary_definitions(page, wlang, limit=3)
+    except SourceUnavailable as e:
+        print(f"Source unavailable, will retry on the next run: {e}")
+        return
 
     write_feed(name, {
         "type": "untranslatable",
+        "v": 2,
         "timestamp": f"{today()}T15:00:00",
         "word": entry['word'],
-        "language": entry['language'],
-        "content": content,
-        "question": question,
+        "native": page if page != entry['word'] else "",
+        "language": language,
+        "gloss": entry['hint'],
+        "senses": [{"pos": pos, "text": text} for pos, text in senses],
+        "url": "https://en.wiktionary.org/wiki/" + urllib.parse.quote(page) + "#" + wlang.replace(' ', '_'),
     })
+    mark_used(used, idx)
+
 
 if __name__ == '__main__':
     generate()

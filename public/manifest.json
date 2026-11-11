@@ -3,8 +3,8 @@
   "short_name": "Noosphere",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#12131c",
-  "theme_color": "#12131c",
+  "background_color": "#2f4760",
+  "theme_color": "#2f4760",
   "icons": [
     {
       "src": "/icon-192.png",

@@ -4,7 +4,7 @@
 Uses GitHub API (no auth needed for public repos, 60 req/hr rate limit).
 """
 import requests, random, json, os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from utils import today, write_feed, feed_exists
 
 # Repos to watch — a mix of NLP tools, terminal utilities, creative coding, language models
@@ -54,13 +54,13 @@ REPOS = [
 
 HEADERS = {
     'Accept': 'application/vnd.github.v3+json',
-    'User-Agent': 'Noosphere/1.0',
+    'User-Agent': 'NoosphereFeed/2.0 (personal reading feed)',
 }
 
 def get_recent_commits(repo, since_hours=48, max_commits=3):
     """Get recent commits from a GitHub repo."""
-    since = (datetime.utcnow() - timedelta(hours=since_hours)).isoformat() + 'Z'
-    url = f"https://api.github.com/repos/{repo}/commits?since={since}&per_page={max_commits}"
+    since = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=since_hours)).isoformat() + 'Z'
+    url = f"https://api.github.com/repos/{repo}/commits?since={since}&per_page=12"
     
     try:
         resp = requests.get(url, headers=HEADERS, timeout=10)
@@ -68,13 +68,20 @@ def get_recent_commits(repo, since_hours=48, max_commits=3):
             return []
         
         commits = []
-        for c in resp.json()[:max_commits]:
-            msg = c['commit']['message'].split('\n')[0][:80]  # first line, truncated
+        for c in resp.json():
+            msg = c['commit']['message'].split('\n')[0][:110]  # first line, truncated
+            # Merge commits say nothing about the change itself.
+            if msg.lower().startswith(('merge ', 'auto merge', 'rollup merge', 'bump ')):
+                continue
+            if len(commits) >= max_commits:
+                break
             sha = c['sha'][:7]
             commits.append({
                 'hash': sha,
                 'message': msg,
                 'repo': repo.split('/')[-1],
+                'full': repo,
+                'url': c.get('html_url', ''),
             })
         return commits
     except Exception as e:

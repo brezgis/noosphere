@@ -4,12 +4,13 @@
 Spotify deprecated recommendations, related-artists, and audio-features for
 dev-mode apps (Nov 2024). So we use a different approach:
 
-1. Pull Anna's top artists + liked songs from Spotify (still available)
-2. Use Last.fm's free API to find similar artists she doesn't already know
-3. Search Spotify for that artist's tracks → guaranteed real, linkable song
-4. Claude writes the blurb — never picks the song
+1. Pull the listener's top artists + liked songs from Spotify (still available)
+2. Find similar artists she doesn't already know: Last.fm when a key is set,
+   otherwise the local model proposes names
+3. Search Spotify for that artist's tracks, so the song is real and linkable
+4. The card states which artist the pick is near. Nobody writes a blurb.
 
-No hallucinated artists. Every link is verified.
+A name the model invents fails the Spotify search and is skipped.
 """
 import json, os, sys, random, time
 from datetime import datetime
@@ -24,7 +25,7 @@ from spotipy.oauth2 import SpotifyOAuth
 import requests
 
 sys.path.insert(0, os.path.dirname(__file__))
-from utils import write_feed, feed_exists, today, ask_claude
+from utils import write_feed, feed_exists, today, try_llm
 
 FEED_NAME = f"{today()}-music-rec"
 
@@ -139,10 +140,8 @@ def llm_similar_artists(artist_name, limit=12):
         f'but lean toward lesser-known / underrated ones rather than the biggest names. '
         f'Return ONLY the artist names, one per line, no numbering, no commentary, no genres.'
     )
-    try:
-        resp = ask_claude(prompt, max_tokens=300, temperature=0.9)
-    except Exception as e:
-        print(f"    LLM similar failed for {artist_name}: {e}")
+    resp = try_llm(prompt, max_tokens=300, temperature=0.9)
+    if not resp:
         return []
     out = []
     seen = set()
@@ -202,6 +201,9 @@ def spotify_search_artist_track(sp, artist_name, track_name=None):
                     'year': item.get('album', {}).get('release_date', '')[:4],
                     'popularity': item.get('popularity', 0),
                     'spotify_url': item.get('external_urls', {}).get('spotify', ''),
+                    # Spotify lists cover sizes largest first. 300px is plenty for the card.
+                    'image': next((im['url'] for im in item.get('album', {}).get('images', [])
+                                   if (im.get('width') or 0) <= 320), ''),
                 }
         return None
     except Exception as e:
@@ -332,31 +334,19 @@ def generate_recommendation():
 
     print(f"  Found: {chosen['name']} by {chosen['artist']} (via {chosen['_seed']}, match: {chosen['_match']:.2f})")
 
-    # Claude writes the blurb about a REAL, VERIFIED song
-    taste_summary = ''
-    if profile:
-        taste_summary = f"Taste: {profile.get('summary', '')}. Traits: {', '.join(profile.get('traits', []))}"
-
-    prompt = f"""Write a 2-3 sentence music recommendation blurb. You're a music-obsessed friend texting someone.
-
-SONG: "{chosen['name']}" by {chosen['artist']}
-ALBUM: {chosen['album']} ({chosen['year']})
-DISCOVERED VIA: Similar to {chosen['_seed']}
-
-LISTENER: {taste_summary}
-
-Write like a friend with great taste texting a recommendation — warm, specific, a little understated. Describe what it actually sounds like (instruments, voice, tempo, texture) rather than hype. No "OMG", no all-caps, no "hits different", no preamble, just the blurb. If you aren't sure about the specific song, write about why the artist is worth discovering and connect to the listener's taste."""
-
-    blurb = ask_claude(prompt, max_tokens=200, temperature=0.9)
-
+    # The note is a plain statement of how the track was found. The model
+    # never describes music it has not heard.
     card = {
         'type': 'music_rec',
-        'timestamp': datetime.now().isoformat(timespec='seconds'),
+        'v': 2,
+        'timestamp': f"{today()}T19:30:00",
         'title': chosen['name'],
         'artist': chosen['artist'],
         'album': chosen['album'],
         'year': chosen['year'],
-        'body': blurb.strip(),
+        'seed': chosen['_seed'],
+        'track_id': chosen['id'],
+        'image': chosen.get('image', ''),
         'spotify_url': chosen['spotify_url'],
     }
 

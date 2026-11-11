@@ -63,6 +63,8 @@ def get_unsplash_image(query):
         'description': data.get('alt_description') or data.get('description') or '',
         'unsplash_url': data.get('links', {}).get('html', ''),
         'color': data.get('color', ''),
+        'width': data.get('width'),
+        'height': data.get('height'),
     }
 
 def generate():
@@ -97,6 +99,10 @@ def generate():
         "photographer": img['photographer'],
         "photographer_url": img['photographer_url'],
         "unsplash_url": img['unsplash_url'],
+        "alt": img['description'],
+        "color": img['color'],
+        "width": img['width'],
+        "height": img['height'],
     })
 
 if __name__ == '__main__':

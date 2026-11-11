@@ -31,10 +31,14 @@ run entropy_garden entropy_garden.py
 run git_log git_log.py
 run painting painting.py
 run midnight_postcard midnight_postcard.py
+run language language.py
+run link link.py
 run music_rec music_rec.py
 
 # 3x/week (Mon, Wed, Fri)
 run untranslatable untranslatable.py
+
+run poem poem.py
 
 # 2x/week
 run apophenia apophenia.py

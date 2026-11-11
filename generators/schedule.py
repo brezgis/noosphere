@@ -3,6 +3,7 @@
 Each generator checks should_run() before generating.
 Days: 0=Monday ... 6=Sunday
 """
+import os
 from datetime import datetime, date
 
 # Schedule: which days each generator runs
@@ -16,6 +17,11 @@ SCHEDULE = {
     'git_log': 'daily',
     'painting': 'daily',
     'midnight_postcard': 'daily',
+    'language': 'daily',
+    'link': 'daily',
+
+    # 3x/week (Tue, Thu, Sun), an evening poem
+    'poem': [1, 3, 6],
 
     # 3x/week (Mon, Wed, Fri)
     'untranslatable': [0, 2, 4],
@@ -55,7 +61,10 @@ def should_run(generator_name):
     sched = SCHEDULE.get(generator_name, 'daily')
     if sched == 'daily':
         return True
+    # NOOSPHERE_DATE backfills a preview feed by hand (see utils.today).
+    override = os.environ.get('NOOSPHERE_DATE')
+    day = date.fromisoformat(override) if override else date.today()
     if sched == 'monthly_1st':
-        return date.today().day == 1
-    today_dow = date.today().weekday()  # 0=Monday
+        return day.day == 1
+    today_dow = day.weekday()  # 0=Monday
     return today_dow in sched

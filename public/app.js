@@ -1,9 +1,12 @@
 'use strict';
-/* noosphere. A one-reader dashboard.
+/* noosphere. An almanac with one reader.
  *
- * Every stream is treated as a blog that this dashboard follows. Cards from
- * the feed become posts of one of seven kinds (text, photo, quote, link,
- * chat, audio, video), and an "echo" card is shown as a reblog.
+ * Every stream posts at its own hour, so the page knows the shape of a day
+ * before it happens: each day gets a line from midnight to midnight with a
+ * dot per post, and today's also shows what is still to come. Cards from the
+ * feed become posts of one of seven kinds (text, photo, quote, link, chat,
+ * audio, video). An "echo" card is an old post returning, and a liked post
+ * is one whose corner has been turned down ("kept").
  *
  * No build step. The feed is /api/feed, a static JSON file in production.
  */
@@ -107,94 +110,165 @@ const store = {
 // ------------------------------------------------------------------ streams
 
 const KINDS = {
-  text:  { label: 'Text',  icon: '<text x="20" y="28" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="25">Aa</text>' },
-  photo: { label: 'Photo', icon: '<path d="M6 12h6l2.500-4h11L28 12h6v19H6z"/><circle cx="20" cy="21" r="6" fill="#fff"/><circle cx="20" cy="21" r="3.200"/>' },
-  quote: { label: 'Quote', icon: '<path d="M7 28V19c0-6 3-10 9-11v4c-3 1-4 3-4 6h4v10zm15 0V19c0-6 3-10 9-11v4c-3 1-4 3-4 6h4v10z"/>' },
-  link:  { label: 'Link',  icon: '<g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><path d="M17 23a6 6 0 0 0 8.500 0l5-5a6 6 0 0 0-8.500-8.500l-2 2"/><path d="M23 17a6 6 0 0 0-8.500 0l-5 5a6 6 0 0 0 8.500 8.500l2-2"/></g>' },
-  chat:  { label: 'Chat',  icon: '<path d="M5 8h30v19H19l-8 7v-7H5z"/><g fill="#fff"><circle cx="13" cy="17.500" r="2.300"/><circle cx="20" cy="17.500" r="2.300"/><circle cx="27" cy="17.500" r="2.300"/></g>' },
-  audio: { label: 'Audio', icon: '<path d="M6 30V20a14 14 0 0 1 28 0v10" fill="none" stroke="currentColor" stroke-width="4"/><rect x="5" y="21" width="8" height="13" rx="2.500"/><rect x="27" y="21" width="8" height="13" rx="2.500"/>' },
-  video: { label: 'Video', icon: '<rect x="5" y="10" width="21" height="20" rx="3"/><path d="M27 18l8-5v14l-8-5z"/>' },
+  text: { label: 'Text' }, photo: { label: 'Photo' }, quote: { label: 'Quote' }, link: { label: 'Link' },
+  chat: { label: 'Chat' }, audio: { label: 'Audio' }, video: { label: 'Video' },
 };
 
-const av = (bg, inner) =>
-  `<svg viewBox="0 0 64 64" role="img" aria-hidden="true"><rect width="64" height="64" fill="${bg}"/>${inner}</svg>`;
-const glyph = (ch, fill, extra = '') =>
-  `<text x="32" y="45" text-anchor="middle" font-size="38" fill="${fill}" font-family="Georgia,'Times New Roman',serif" ${extra}>${ch}</text>`;
+// Every stream has a mark of its own, drawn on a 24-unit grid in one weight
+// of line. The class "f" fills a shape instead of outlining it.
+const sig = inner => `<svg class="sigil" viewBox="0 0 24 24" aria-hidden="true">${inner}</svg>`;
 
-const ME = {
-  blog: 'noosphere',
-  avatar: av('#22364b', '<g fill="none" stroke="#e8eef5" stroke-width="2.500"><circle cx="32" cy="32" r="21"/><circle cx="32" cy="32" r="13"/></g><circle cx="32" cy="32" r="5" fill="#f2992e"/>'),
-};
-
+// `at` and `days` say when a stream posts, which lets the page show what is
+// still to come. They repeat generators/schedule.py and the timestamp each
+// generator writes, so a change there needs the same change here. `days` is
+// 'daily', 'first' (of the month) or a list of weekdays with Sunday as 0.
 const STREAMS = {
-  weather: { blog: 'lyrical-weather', name: 'Lyrical Weather', kind: 'text',
+  weather: { blog: 'lyrical-weather', name: 'Lyrical Weather', kind: 'text', at: '06:50', days: 'daily',
     about: 'The Boston forecast in the forecasters’ own words.',
-    avatar: av('#8cbfe0', '<circle cx="42" cy="24" r="11" fill="#ffd66b"/><g fill="#fff"><circle cx="24" cy="38" r="10"/><circle cx="36" cy="40" r="8"/><circle cx="14" cy="42" r="6"/><rect x="14" y="40" width="24" height="8"/></g>') },
-  wittgenstein: { blog: 'wittgensteins-ladder', name: 'Wittgenstein’s Ladder', kind: 'quote',
+    sigil: sig('<path d="M3 16h18M6.500 16a5.500 5.500 0 0 1 11 0M12 4.500v3M5 8.300l2 2.200M19 8.300l-2 2.200M7.500 20h9"/>') },
+  wittgenstein: { blog: 'wittgensteins-ladder', name: 'Wittgenstein’s Ladder', kind: 'quote', at: '08:00', days: 'daily',
     about: 'The Tractatus, one proposition a day.',
-    avatar: av('#efe6d2', '<g stroke="#4a3f35" stroke-width="3.500" stroke-linecap="round"><path d="M22 8 20 56M42 8l2 48"/><path d="M22 17h20M21.500 28h21M21 39h22M20.500 50h23" stroke-width="3"/></g>') },
-  russian: { blog: 'russkiy-chas', name: 'Русский час', kind: 'quote',
+    sigil: sig('<path d="M8.500 3 7.500 21M15.500 3l1 18M8.300 7.500h7.400M8 12h8M7.800 16.500h8.400"/>') },
+  russian: { blog: 'russkiy-chas', name: 'Русский час', kind: 'quote', at: '08:30', days: 'daily',
     about: 'One sentence of Russian literature a day.',
-    avatar: av('#c64b3f', glyph('Я', '#fff', 'font-weight="700"')) },
-  untranslatable: { blog: 'the-untranslatable', name: 'The Untranslatable', kind: 'text',
+    sigil: sig('<path d="M12 4v16M5 4c.500 5 3 8 7 8M19 4c-.500 5-3 8-7 8M5 20c.500-5 3-8 7-8M19 20c-.500-5-3-8-7-8"/>') },
+  untranslatable: { blog: 'the-untranslatable', name: 'The Untranslatable', kind: 'text', at: '15:00', days: [1, 3, 5],
     about: 'Words that English needs a sentence for.',
-    avatar: av('#7b62a8', glyph('≠', '#fff')) },
-  corpus_surprise: { blog: 'corpus-surprise', name: 'Corpus Surprise', kind: 'quote',
+    sigil: sig('<circle cx="12" cy="12" r="9"/><path d="M8 10h8M8 14h8M14.500 7l-5 10"/>') },
+  corpus_surprise: { blog: 'corpus-surprise', name: 'Corpus Surprise', kind: 'quote', at: '14:15', days: 'daily',
     about: 'One sentence pulled at random from 130,000.',
-    avatar: av('#4f9d79', glyph('¶', '#fff')) },
-  annotation: { blog: 'commonplace-book', name: 'The Commonplace Book', kind: 'text',
+    sigil: sig('<g class="f"><circle cx="5" cy="5" r="1.100"/><circle cx="12" cy="5" r="1.100"/><circle cx="19" cy="5" r="1.100"/><circle cx="5" cy="12" r="1.100"/><circle cx="19" cy="12" r="1.100"/><circle cx="5" cy="19" r="1.100"/><circle cx="12" cy="19" r="1.100"/><circle cx="19" cy="19" r="1.100"/><circle cx="12" cy="12" r="1.100"/></g><circle cx="12" cy="12" r="4"/>') },
+  annotation: { blog: 'commonplace-book', name: 'The Commonplace Book', kind: 'text', at: '15:00', days: [0],
     about: 'A paragraph from an old novel, once a week.',
-    avatar: av('#b98d58', '<path d="M32 18c-6-4-13-4-19-2v30c6-2 13-2 19 2 6-4 13-4 19-2V16c-6-2-13-2-19 2z" fill="#fff8ea"/><path d="M32 18v30" stroke="#b98d58" stroke-width="2"/>') },
-  entropy_garden: { blog: 'entropy-garden', name: 'Entropy Garden', kind: 'video',
+    sigil: sig('<path d="M12 7c-2.500-2-5.500-2-8.500-1v12c3-1 6-1 8.500 1 2.500-2 5.500-2 8.500-1V6c-3-1-6-1-8.500 1zM12 7v12"/>') },
+  entropy_garden: { blog: 'entropy-garden', name: 'Entropy Garden', kind: 'video', at: '23:00', days: 'daily',
     about: 'A small simulation that grows while you watch.',
-    avatar: av('#1e1e2e', '<g fill="#a6e3a1"><rect x="26" y="14" width="9" height="9"/><rect x="37" y="25" width="9" height="9"/><rect x="15" y="36" width="9" height="9"/><rect x="26" y="36" width="9" height="9"/><rect x="37" y="36" width="9" height="9"/></g>') },
-  apophenia: { blog: 'apophenia-machine', name: 'Apophenia Machine', kind: 'link',
+    sigil: sig('<path d="M12 21v-7M12 14 7 9M12 14l5-5M7 9V4M7 9H3M17 9V4M17 9h4"/>') },
+  apophenia: { blog: 'apophenia-machine', name: 'Apophenia Machine', kind: 'link', at: '14:00', days: [2, 4],
     about: 'Two unrelated things and one question.',
-    avatar: av('#f0c24a', '<path d="M17 44 47 20" stroke="#5b4300" stroke-width="2.500" stroke-dasharray="3 5" stroke-linecap="round"/><circle cx="17" cy="44" r="8" fill="#5b4300"/><circle cx="47" cy="20" r="8" fill="#fff"/>') },
-  dead_medium: { blog: 'the-dead-medium', name: 'The Dead Medium', kind: 'text',
+    sigil: sig('<circle cx="6" cy="17" r="3"/><circle cx="18" cy="7" r="3"/><path d="M9 14.500l6-5" stroke-dasharray="1 2.600"/>') },
+  dead_medium: { blog: 'the-dead-medium', name: 'The Dead Medium', kind: 'text', at: '10:00', days: [5],
     about: 'An obituary page for communication technology.',
-    avatar: av('#4b4f58', '<rect x="10" y="18" width="44" height="29" rx="3" fill="#d9dce2"/><rect x="17" y="24" width="30" height="12" rx="2" fill="#4b4f58"/><circle cx="25" cy="30" r="3.500" fill="#d9dce2"/><circle cx="39" cy="30" r="3.500" fill="#d9dce2"/>') },
-  painting: { blog: 'midday-museum', name: 'Midday Museum', kind: 'photo',
+    sigil: sig('<path d="M12 3v18M7 8.500h10M9.500 21h5"/>') },
+  painting: { blog: 'midday-museum', name: 'Midday Museum', kind: 'photo', at: '13:00', days: 'daily',
     about: 'One public-domain painting from Chicago at lunch.',
-    avatar: av('#b8893a', '<rect x="9" y="12" width="46" height="40" fill="#f7efdc"/><rect x="15" y="18" width="34" height="28" fill="#9fc6dc"/><path d="M15 46l11-14 8 9 6-6 9 11z" fill="#57805a"/><circle cx="41" cy="25" r="3.500" fill="#f6d36b"/>') },
-  postcard: { blog: 'midnight-postcard', name: 'Midnight Postcard', kind: 'photo',
+    sigil: sig('<rect x="3.500" y="5" width="17" height="14"/><path d="M3.500 16l5-5 4 4 3-2.500 5 4.500"/><circle class="f" cx="15.500" cy="9" r="1.200"/>') },
+  postcard: { blog: 'midnight-postcard', name: 'Midnight Postcard', kind: 'photo', at: '23:30', days: 'daily',
     about: 'One photograph, late, with no caption.',
-    avatar: av('#1d2a4d', '<circle cx="31" cy="31" r="15" fill="#f4e9b8"/><circle cx="38" cy="26" r="13" fill="#1d2a4d"/><g fill="#f4e9b8"><circle cx="48" cy="44" r="1.600"/><circle cx="14" cy="16" r="1.300"/><circle cx="50" cy="14" r="1.300"/></g>') },
-  git_log: { blog: 'git-log-oneline', name: 'git log --oneline', kind: 'chat',
+    sigil: sig('<path d="M15 3.500A9 9 0 1 0 20.500 15 7.500 7.500 0 0 1 15 3.500z"/>') },
+  git_log: { blog: 'git-log-oneline', name: 'git log --oneline', kind: 'chat', at: '12:00', days: 'daily',
     about: 'What other people committed today.',
-    avatar: av('#16181d', '<text x="9" y="41" font-family="\'Courier New\',monospace" font-weight="700" font-size="26" fill="#7ee081">$_</text>') },
-  penny_red: { blog: 'the-penny-red', name: 'The Penny Red', kind: 'text',
+    sigil: sig('<path d="M7 7.800v8.400M7 15c0-4 10-2.500 10-7.200"/><circle cx="7" cy="6" r="1.800"/><circle cx="7" cy="18" r="1.800"/><circle cx="17" cy="6" r="1.800"/>') },
+  penny_red: { blog: 'the-penny-red', name: 'The Penny Red', kind: 'text', at: '11:00', days: [2, 6],
     about: 'Places that were renamed, erased or argued over.',
-    avatar: av('#f3ece0', '<rect x="11" y="9" width="42" height="46" fill="#b5483a" stroke="#f3ece0" stroke-width="4" stroke-dasharray="1 4.600" stroke-linecap="round"/><text x="32" y="41" text-anchor="middle" font-family="Georgia,serif" font-size="21" fill="#f3ece0">1d</text>') },
-  the_diff: { blog: 'the-diff', name: 'The Diff', kind: 'chat',
+    sigil: sig('<rect x="5" y="3.500" width="14" height="17" stroke-dasharray="1.500 2.500"/><circle cx="12" cy="12" r="3.500"/>') },
+  the_diff: { blog: 'the-diff', name: 'The Diff', kind: 'chat', at: '09:00', days: [1],
     about: 'One passage in two or three languages.',
-    avatar: av('#f1f3f5', '<path d="M0 0h32v64H0z" fill="#f9d2cf"/><path d="M32 0h32v64H32z" fill="#cdeccd"/><path d="M9 32h14" stroke="#b03a30" stroke-width="5"/><path d="M41 32h14M48 25v14" stroke="#2f7d3b" stroke-width="5"/>') },
-  typeface: { blog: 'typeface-of-the-week', name: 'Typeface of the Week', kind: 'photo',
+    sigil: sig('<path d="M12 4v9M7.500 8.500h9M7.500 18.500h9"/>') },
+  typeface: { blog: 'typeface-of-the-week', name: 'Typeface of the Week', kind: 'photo', at: '09:30', days: [3],
     about: 'A typeface and where it came from.',
-    avatar: av('#fff', '<text x="32" y="44" text-anchor="middle" font-family="Georgia,serif" font-size="34" fill="#16181d">Aa</text><path d="M8 52h48" stroke="#e0483e" stroke-width="2"/>') },
-  recipe: { blog: 'the-recipe-box', name: 'The Recipe Box', kind: 'photo',
+    sigil: sig('<path d="M6 18 12 4l6 14M8.200 13h7.600M3 21h18"/>') },
+  recipe: { blog: 'the-recipe-box', name: 'The Recipe Box', kind: 'photo', at: '17:00', days: [3],
     about: 'A real recipe and the history of one word in it.',
-    avatar: av('#ee8d4b', '<path d="M32 12c12 0 21 8 20 20s-10 21-21 20-20-10-19-22 8-18 20-18z" fill="#fff"/><circle cx="33" cy="33" r="9" fill="#f7c531"/>') },
-  music_rec: { blog: 'you-should-hear-this', name: 'You Should Hear This', kind: 'audio',
+    sigil: sig('<path d="M3.500 12h17a8.500 8.500 0 0 1-17 0zM9.500 8.500c-1-1.500 1-2.500 0-4.500M14.500 8.500c-1-1.500 1-2.500 0-4.500"/>') },
+  music_rec: { blog: 'you-should-hear-this', name: 'You Should Hear This', kind: 'audio', at: '19:30', days: 'daily',
     about: 'One song a day that is not in the library yet.',
-    avatar: av('#a77dc2', '<circle cx="32" cy="32" r="22" fill="#1b1b1f"/><circle cx="32" cy="32" r="15" fill="none" stroke="#3a3a42" stroke-width="2"/><circle cx="32" cy="32" r="8" fill="#f2992e"/><circle cx="32" cy="32" r="2" fill="#1b1b1f"/>') },
-  monthly_playlist: { blog: 'monthly-mixtape', name: 'Monthly Mixtape', kind: 'audio',
+    sigil: sig('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.500"/><circle class="f" cx="12" cy="12" r="1.200"/>') },
+  monthly_playlist: { blog: 'monthly-mixtape', name: 'Monthly Mixtape', kind: 'audio', at: '06:00', days: 'first',
     about: 'Last month’s songs on one tape.',
-    avatar: av('#e0709a', '<rect x="9" y="17" width="46" height="31" rx="3" fill="#fff"/><rect x="15" y="22" width="34" height="14" rx="7" fill="#e0709a"/><circle cx="23" cy="29" r="4" fill="#fff"/><circle cx="41" cy="29" r="4" fill="#fff"/><path d="M19 48l3-6h20l3 6z" fill="#e0709a"/>') },
-  language: { blog: 'a-language-a-day', name: 'A Language a Day', kind: 'text',
+    sigil: sig('<rect x="3" y="6" width="18" height="12" rx="1"/><circle cx="8.500" cy="12" r="2"/><circle cx="15.500" cy="12" r="2"/><path d="M10.500 12h3"/>') },
+  language: { blog: 'a-language-a-day', name: 'A Language a Day', kind: 'text', at: '10:30', days: 'daily',
     about: 'One language from the World Atlas of Language Structures.',
-    avatar: av('#2f8f8b', '<g fill="none" stroke="#fff" stroke-width="2.500"><circle cx="32" cy="32" r="20"/><ellipse cx="32" cy="32" rx="9" ry="20"/><path d="M12 32h40M15 22h34M15 42h34"/></g>') },
-  poem: { blog: 'the-night-poem', name: 'The Night Poem', kind: 'text',
+    sigil: sig('<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>') },
+  poem: { blog: 'the-night-poem', name: 'The Night Poem', kind: 'text', at: '21:00', days: [0, 2, 4],
     about: 'A short poem, three evenings a week.',
-    avatar: av('#2c2a4a', '<rect x="27" y="30" width="10" height="22" rx="1.500" fill="#f3ead7"/><path d="M32 12c5 6 6 9 6 12a6 6 0 0 1-12 0c0-3 1-6 6-12z" fill="#f6b23e"/><path d="M20 52h24" stroke="#f3ead7" stroke-width="3" stroke-linecap="round"/>') },
-  link: { blog: 'open-tabs', name: 'Open Tabs', kind: 'link',
+    sigil: sig('<path d="M12 3c2.500 3 3.500 5 3.500 7a3.500 3.500 0 0 1-7 0c0-2 1-4 3.500-7zM12 13.500V21M8 21h8"/>') },
+  link: { blog: 'open-tabs', name: 'Open Tabs', kind: 'link', at: '16:00', days: 'daily',
     about: 'One thing to read from a short list of blogs.',
-    avatar: av('#56bc8a', '<g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"><path d="M28 36a8 8 0 0 0 11 0l8-8a8 8 0 0 0-11-11l-3 3"/><path d="M36 28a8 8 0 0 0-11 0l-8 8a8 8 0 0 0 11 11l3-3"/></g>') },
+    sigil: sig('<path d="M10 5H5v14h14v-5M13.500 4H20v6.500M20 4l-9 9"/>') },
 };
+const STREAM_LIST = Object.values(STREAMS);
 STREAMS.diff = STREAMS.the_diff;
 
-const UNKNOWN = { blog: 'unsorted', name: 'Unsorted', kind: 'text', about: '', avatar: av('#8c96a3', glyph('?', '#fff')) };
+const UNKNOWN = { blog: 'unsorted', name: 'Unsorted', kind: 'text', about: '', sigil: sig('<circle cx="12" cy="12" r="9" stroke-dasharray="2 3"/>') };
 const streamOf = type => STREAMS[type] || UNKNOWN;
+// Jost sets two hyphens so close that "--oneline" reads as a dash, so a
+// sliver of space goes between them.
+const nameHTML = s => esc(s.name).replace('--', '-<i class="hy"></i>-');
+
+// ------------------------------------------------------------------ almanac
+// What the page knows about a day without being told: its number, the phase
+// of the moon, and which streams are due.
+
+const FIRST_DAY = new Date(2026, 1, 16);   // the date of the first card
+function dayNumber(d) {
+  return Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - FIRST_DAY) / 864e5) + 1;
+}
+
+// Mean lunar phase as a fraction of the synodic month: 0 is new, 0.5 is full.
+// Counting from the new moon of 6 January 2000 is good to a few hours, which
+// is plenty for a picture 16 pixels wide.
+function moonPhase(d) {
+  const days = (d.getTime() - Date.UTC(2000, 0, 6, 18, 14)) / 864e5;
+  const p = (days / 29.530588853) % 1;
+  return p < 0 ? p + 1 : p;
+}
+function moonName(p) {
+  if (p < .034 || p >= .966) return 'new moon';
+  if (p < .216) return 'waxing crescent';
+  if (p < .284) return 'first quarter';
+  if (p < .466) return 'waxing gibbous';
+  if (p < .534) return 'full moon';
+  if (p < .716) return 'waning gibbous';
+  if (p < .784) return 'last quarter';
+  return 'waning crescent';
+}
+function moonHTML(d) {
+  const p = moonPhase(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 21));
+  const rx = (Math.abs(Math.cos(2 * Math.PI * p)) * 7).toFixed(2);
+  const waxing = p < .5, crescent = p < .25 || p >= .75;
+  // The lit limb is half the disc. The terminator is half an ellipse that
+  // closes the shape on the near side for a crescent and the far side otherwise.
+  const lit = `M8 1A7 7 0 0 ${waxing ? 1 : 0} 8 15A${rx} 7 0 0 ${waxing === crescent ? 0 : 1} 8 1z`;
+  return `<span class="moon"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="lit" d="${lit}"/><circle class="disc" cx="8" cy="8" r="7"/></svg>${moonName(p)}</span>`;
+}
+
+const minutesOf = hhmm => { const [h, m] = hhmm.split(':'); return +h * 60 + +m; };
+function clockMinutes(str) {   // "6:30 am" from the weather stream
+  const m = /^(\d{1,2}):(\d\d)\s*([ap])m$/i.exec(String(str || '').trim());
+  if (!m) return null;
+  return (+m[1] % 12 + (m[3].toLowerCase() === 'p' ? 12 : 0)) * 60 + +m[2];
+}
+function dueOn(s, d) {
+  if (s.days === 'daily') return true;
+  if (s.days === 'first') return d.getDate() === 1;
+  return s.days.includes(d.getDay());
+}
+function slot(s, d) {
+  const m = minutesOf(s.at);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(m / 60), m % 60);
+}
+function nextPost(s, now) {
+  for (let i = 0; i < 40; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    if (dueOn(s, d) && slot(s, d) > now) return slot(s, d);
+  }
+  return null;
+}
+function whenLabel(d) {
+  const now = new Date();
+  const days = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 864e5);
+  if (days === 0) return clock(d);
+  if (days === 1) return `tomorrow, ${clock(d)}`;
+  if (days < 7) return `${DAYS[d.getDay()]}, ${clock(d)}`;
+  return shortDate(d);
+}
+function cadence(s) {
+  const at = clock(slot(s, new Date()));
+  if (s.days === 'daily') return `Posts every day at ${at}.`;
+  if (s.days === 'first') return `Posts on the first of the month at ${at}.`;
+  return `Posts on ${listOf(s.days.map(n => DAYS[n] + 's'))} at ${at}.`;
+}
 
 // --------------------------------------------------------------------- tags
 
@@ -521,6 +595,7 @@ function renderGeneric(it) {
 const state = {
   items: [],
   byId: new Map(),
+  days: new Map(),      // every post of a day, keyed by dayKey
   signature: '',
   pending: null,        // a newer feed waiting behind the "new posts" button
   likes: new Set(store.get('noosphere.likes', [])),
@@ -577,7 +652,7 @@ function route() {
     case 'stream': return { view: 'feed', stream: arg };
     case 'tagged': return { view: 'feed', tag: arg.toLowerCase() };
     case 'search': return { view: 'feed', q: arg };
-    case 'likes': return { view: 'feed', likes: true };
+    case 'kept': case 'likes': return { view: 'feed', likes: true };
     case 'archive': return { view: 'archive' };
     case 'post': return { view: 'post', id: arg };
     case 'random': return { view: 'random' };
@@ -601,48 +676,92 @@ function filtered(r) {
 // ------------------------------------------------------------------- posts
 
 const ICON = {
-  reblog: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11V9a3 3 0 0 1 3-3h9M14 3l3 3-3 3M19 13v2a3 3 0 0 1-3 3H7M10 21l-3-3 3-3" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  heart: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-5.200-8-11a4.600 4.600 0 0 1 8-3 4.600 4.600 0 0 1 8 3c0 5.800-8 11-8 11z"/></svg>',
+  // A page with its corner turned down.
+  keep: '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M1.500 1h7L12.500 5v8h-11z"/><path class="fold" d="M8.500 1v4h4z"/></svg>',
 };
-
-function noteCount(it) { return (it.echo ? 1 : 0) + (state.likes.has(it._id) ? 1 : 0); }
-function notesLabel(it) { const n = noteCount(it); return n ? `${n} note${n === 1 ? '' : 's'}` : ''; }
 
 function postHTML(it) {
   const s = it._stream;
   let r;
   try { r = (RENDER[it.type] || renderGeneric)(it); }
   catch (e) { console.warn('Could not render', it._id, e); r = renderGeneric(it); }
-  const liked = state.likes.has(it._id);
+  const kept = state.likes.has(it._id);
   const streamHref = `#/stream/${s.blog}`;
-  const who = it.echo
-    ? `<a class="blog" href="#/">${ME.blog}</a><span class="rb" title="reblogged">${ICON.reblog}</span><a class="blog from" href="${streamHref}">${esc(s.blog)}</a>`
-    : `<a class="blog" href="${streamHref}">${esc(s.blog)}</a>`;
   const src = r.source && safeUrl(r.source.url)
     ? `<a class="src" href="${safeUrl(r.source.url)}" target="_blank" rel="noopener">${esc(r.source.label)}</a>` : '';
-  const echoLine = it.echo && it.echo_from
-    ? `<p class="echo-line">${esc(s.blog)} first posted this on ${esc(it.echo_from)}.</p>` : '';
+  const returning = it.echo
+    ? `<span class="returning">${it.echo_from ? `returning from ${esc(it.echo_from)}` : 'returning from the archive'}</span>` : '';
   const tags = it._tags.length
     ? `<ul class="tags">${it._tags.map(t => `<li><a href="#/tagged/${encodeURIComponent(t)}">#${esc(t)}</a></li>`).join('')}</ul>` : '';
-  const avatar = it.echo
-    ? `<a class="avatar" href="#/" aria-hidden="true" tabindex="-1">${ME.avatar}<span class="sub">${s.avatar}</span></a>`
-    : `<a class="avatar" href="${streamHref}" aria-hidden="true" tabindex="-1">${s.avatar}</a>`;
-  return `<article class="post k-${it._kind} s-${esc(it.type)}${r.flush ? ' flush' : ''}" id="p-${it._id}" data-id="${it._id}" tabindex="-1">
-  ${avatar}
+  return `<article class="post k-${it._kind} s-${esc(it.type)}${r.flush ? ' flush' : ''}${it.echo ? ' returns' : ''}${kept ? ' kept' : ''}" id="p-${it._id}" data-id="${it._id}" tabindex="-1">
+  <div class="margin">
+    <a class="seal" href="${streamHref}" title="${esc(s.name)}" aria-hidden="true" tabindex="-1">${s.sigil}</a>
+    <a class="when" href="#/post/${it._id}" title="Open this post by itself">${clock(it._date)}</a>
+  </div>
   <div class="card">
-    <header class="phead"><span class="mini">${it.echo ? ME.avatar : s.avatar}</span><span class="who">${who}</span>${src}</header>
-    <div class="pbody">${r.body}${echoLine}</div>
+    <header class="phead"><span class="seal mini">${s.sigil}</span><a class="blog" href="${streamHref}">${nameHTML(s)}</a>${returning}${src}</header>
+    <div class="pbody">${r.body}</div>
     ${tags}
     <footer class="pfoot">
-      <span class="notes">${notesLabel(it)}</span>
-      <a class="when" href="#/post/${it._id}" title="Open this post">${shortDate(it._date)}, ${clock(it._date)}</a>
+      <a class="when" href="#/post/${it._id}">${shortDate(it._date)}, ${clock(it._date)}</a>
       <span class="acts">
-        <button class="act copy" type="button" title="Copy a link to this post" aria-label="Copy a link to this post">${ICON.reblog}</button>
-        <button class="act like" type="button" aria-pressed="${liked}" title="${liked ? 'Unlike' : 'Like'}" aria-label="Like this post">${ICON.heart}</button>
+        <button class="act copy" type="button">Copy link</button>
+        <button class="act like" type="button" aria-pressed="${kept}">${ICON.keep}<span>${kept ? 'Kept' : 'Keep'}</span></button>
       </span>
     </footer>
+    <span class="ear" aria-hidden="true"></span>
   </div>
 </article>`;
+}
+
+// The heading of a day: its date, its number, the moon, and (on the full
+// feed) a line from midnight to midnight with a dot for every post.
+function dayHTML(d, withLine) {
+  const now = new Date();
+  const today = dayKey(d) === dayKey(now);
+  const y = new Date(now); y.setDate(now.getDate() - 1);
+  const rel = today ? 'Today' : dayKey(d) === dayKey(y) ? 'Yesterday' : '';
+  const yr = d.getFullYear() === now.getFullYear() ? '' : `, ${d.getFullYear()}`;
+  const date = `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}${yr}`;
+  const n = dayNumber(d);
+  let html = `<header class="day${today ? ' today' : ''}"><div class="day-head"><h2>${rel ? `<small>${rel}</small>` : ''}${date}</h2><p class="day-meta">${n > 0 ? `<span>No. ${n}</span>` : ''}${moonHTML(d)}</p></div>`;
+  if (withLine) html += dayLine(d, today, now);
+  return html + '</header>';
+}
+
+function dayLine(d, today, now) {
+  const items = state.days.get(dayKey(d)) || [];
+  const pct = m => (m / 1440 * 100).toFixed(2);
+  const mins = t => t.getHours() * 60 + t.getMinutes();
+  let line = '';
+  const wx = items.find(it => it.type === 'weather' && !it.echo);
+  const rise = wx && clockMinutes(wx.sunrise), set = wx && clockMinutes(wx.sunset);
+  if (rise != null && set != null && set > rise) {
+    line += `<span class="light" style="left:${pct(rise)}%;width:${pct(set - rise)}%" title="The sun is up from ${esc(wx.sunrise)} to ${esc(wx.sunset)}"></span>`;
+  }
+  line += '<span class="hr start" style="left:0">midnight</span><span class="hr" style="left:25%">6 am</span><span class="hr" style="left:50%">noon</span><span class="hr" style="left:75%">6 pm</span>';
+  for (const it of items.slice().reverse()) {
+    const label = `${it._stream.name}${it.echo ? ', returning' : ''}, ${clock(it._date)}`;
+    line += `<button class="dot${it.echo ? ' ret' : ''}" type="button" data-go="${it._id}" style="left:${pct(mins(it._date))}%" title="${esc(label)}" aria-label="Go to ${esc(label)}"></button>`;
+  }
+  let coming = [];
+  if (today) {
+    const have = new Set(items.filter(it => !it.echo).map(it => it._stream));
+    coming = STREAM_LIST.filter(s => dueOn(s, d) && !have.has(s)).sort((a, b) => minutesOf(a.at) - minutesOf(b.at));
+    for (const s of coming) {
+      line += `<span class="dot due" style="left:${pct(minutesOf(s.at))}%" title="${esc(s.name)}, due at ${clock(slot(s, d))}"></span>`;
+    }
+    line += `<span class="now" style="left:${pct(mins(now))}%" title="Now"></span>`;
+  }
+  let html = `<div class="dayline">${line}</div>`;
+  if (today) {
+    const count = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'][coming.length] || coming.length;
+    html += coming.length
+      ? `<div class="tocome"><p>${count} more ${coming.length === 1 ? 'post is' : 'posts are'} on the way today.</p><ol>${coming.map(s =>
+          `<li><time>${clock(slot(s, d))}</time>${s.sigil}<b>${nameHTML(s)}</b><span>${esc(s.about)}</span></li>`).join('')}</ol></div>`
+      : `<div class="tocome"><p>Everything due today has arrived.</p></div>`;
+  }
+  return html;
 }
 
 const postsEl = $('#posts');
@@ -650,12 +769,13 @@ const postsEl = $('#posts');
 function appendPosts(n) {
   const slice = state.shown.slice(state.count, state.count + n);
   if (!slice.length) return;
+  const whole = state.shown.length === state.items.length;
   let html = '';
   for (const it of slice) {
     const k = dayKey(it._date);
     if (k !== state.lastDay) {
       state.lastDay = k;
-      html += `<h2 class="day"><span>${dayLabel(it._date)}</span></h2>`;
+      html += dayHTML(it._date, whole);
     }
     html += postHTML(it);
   }
@@ -673,17 +793,19 @@ function appendPosts(n) {
 function describe(r) {
   if (r.kind) return `Showing only ${KINDS[r.kind].label.toLowerCase()} posts.`;
   if (r.stream) {
-    const s = Object.values(STREAMS).find(x => x.blog === r.stream);
-    return s ? `<strong>${esc(s.name)}</strong> ${esc(s.about)}` : `Nothing posts under the name ${esc(r.stream)}.`;
+    const s = STREAM_LIST.find(x => x.blog === r.stream);
+    if (!s) return `Nothing posts under the name ${esc(r.stream)}.`;
+    const nx = nextPost(s, new Date());
+    return `<strong>${nameHTML(s)}.</strong> ${esc(s.about)} ${cadence(s)}${nx ? ` The next one is due ${dayKey(nx) === dayKey(new Date()) ? 'today at ' : ''}${whenLabel(nx)}.` : ''}`;
   }
   if (r.tag) return `Showing posts tagged <strong>#${esc(r.tag)}</strong>.`;
   if (r.q) return `Showing posts that mention <strong>${esc(r.q)}</strong>.`;
-  if (r.likes) return 'These are the posts you liked. Likes are kept in this browser only.';
+  if (r.likes) return 'These are the posts you kept. They are remembered in this browser only.';
   return '';
 }
 
 function emptyMessage(r) {
-  if (r.likes) return 'You have not liked anything yet. Press the heart under a post and it will wait for you here.';
+  if (r.likes) return 'You have not kept anything yet. Choose Keep under a post to turn its corner down, and it will wait for you here.';
   if (r.q) return `Nothing in the last 500 posts mentions “${esc(r.q)}”. A shorter search may find more.`;
   if (!state.items.length) return 'The feed is empty. The generators have not written anything yet.';
   return 'No posts match that filter.';
@@ -712,7 +834,7 @@ function renderPost(r) {
   postsEl.className = 'single';
   const notice = $('#notice');
   notice.hidden = false;
-  notice.innerHTML = `<p>${it ? 'You are looking at one post.' : 'That post has scrolled out of the last 500.'}</p><a href="#/">Back to the dashboard</a>`;
+  notice.innerHTML = `<p>${it ? 'You are looking at one post.' : 'That post has scrolled out of the last 500.'}</p><a href="#/">Back to today</a>`;
   state.shown = it ? [it] : [];
   state.count = 0;
   state.lastDay = '';
@@ -743,7 +865,7 @@ function snippet(it) {
 function renderArchive() {
   const notice = $('#notice');
   notice.hidden = false;
-  notice.innerHTML = `<p>The archive holds the last ${state.items.length} posts, newest first.</p><a href="#/">Back to the dashboard</a>`;
+  notice.innerHTML = `<p>The archive holds the last ${state.items.length} posts, newest first.</p><a href="#/">Back to today</a>`;
   $('#end').hidden = true;
   postsEl.className = 'archive';
   let html = '', month = '';
@@ -752,13 +874,13 @@ function renderArchive() {
     if (m !== month) {
       if (month) html += '</div>';
       month = m;
-      html += `<h2 class="day"><span>${m}</span></h2><div class="tiles">`;
+      html += `<h2 class="month">${m}</h2><div class="tiles">`;
     }
     const img = thumbUrl(it);
     const label = `${it._stream.name}, ${shortDate(it._date)}`;
     html += `<a class="tile k-${it._kind}${img ? ' has-img' : ''}" href="#/post/${it._id}" title="${esc(label)}">${
       img ? `<img src="${img}" alt="" loading="lazy" decoding="async">` : `<span class="snip" dir="auto">${esc(snippet(it))}</span>`
-    }<span class="tile-foot">${esc(it._stream.blog)}<i>${it._date.getDate()}</i></span></a>`;
+    }<span class="tile-foot">${it._stream.sigil}<b>${nameHTML(it._stream)}</b><i>${it._date.getDate()}</i></span></a>`;
   }
   if (month) html += '</div>';
   postsEl.innerHTML = html || '<p class="empty">The archive is empty.</p>';
@@ -766,54 +888,62 @@ function renderArchive() {
 
 // ----------------------------------------------------------------- sidebar
 
-const THEMES = [
-  { id: 'dashboard', label: 'Dashboard', color: '#2f4760' },
-  { id: 'pale', label: 'Pale', color: '#f3e4e8' },
-  { id: 'midnight', label: 'Midnight', color: '#14131f' },
+const LIGHTS = [
+  { id: 'sun', label: 'Follow the sun' },
+  { id: 'day', label: 'Day' },
+  { id: 'night', label: 'Night' },
 ];
+const PAGE_COLOR = { day: '#e7e2f0', night: '#120e24' };
 
 function renderSidebar() {
-  const latest = new Map();
-  const counts = new Map();
-  for (const it of state.items) {
-    const b = it._stream.blog;
-    counts.set(b, (counts.get(b) || 0) + 1);
-    if (!latest.has(b)) latest.set(b, it._date);
+  const now = new Date();
+  const next = new Map(STREAM_LIST.map(s => [s, nextPost(s, now)]));
+  const streams = STREAM_LIST.slice().sort((a, b) => (next.get(a) || Infinity) - (next.get(b) || Infinity));
+  // The streams as a programme: later today, tomorrow, then the rest by day.
+  const dayStart = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const groups = [['Later today', []], ['Tomorrow', []], ['After that', []]];
+  for (const s of streams) {
+    const t = next.get(s);
+    if (!t) continue;
+    const away = Math.round((dayStart(t) - dayStart(now)) / 864e5);
+    const when = away < 2 ? clock(t) : away < 7 ? DAYS[t.getDay()] : shortDate(t);
+    groups[Math.min(away, 2)][1].push(`<li><a href="#/stream/${s.blog}" title="${esc(s.about)}">${s.sigil}<b>${nameHTML(s)}</b><i>${when}</i></a></li>`);
   }
-  const seen = new Set();
-  const following = Object.values(STREAMS).filter(s => !seen.has(s.blog) && seen.add(s.blog) && counts.has(s.blog))
-    .sort((a, b) => latest.get(b.blog) - latest.get(a.blog));
+  const programme = groups.filter(g => g[1].length).map(g => `<h3>${g[0]}</h3><ul class="streams">${g[1].join('')}</ul>`).join('');
   const pics = state.items.filter(it => it._kind === 'photo' && thumbUrl(it) && it.type !== 'typeface');
   const radar = pics.length ? pics[Math.floor(Math.random() * pics.length)] : null;
-  const theme = document.documentElement.getAttribute('data-theme') || 'dashboard';
+  const light = store.get('noosphere.light', 'sun');
 
   $('#sidebar').innerHTML = `
-  <section class="blogcard">
-    <span class="avatar">${ME.avatar}</span>
-    <h1>noosphere</h1>
-    <p>A feed with nobody else in it. The blogs below post by themselves, each on its own schedule, and what they post is quoted from a real source.</p>
+  <section class="about">
+    <p>A feed with nobody else in it. The streams below post by themselves, each at its own hour, and what they post is quoted from a real source.</p>
     <ul class="stats">
       <li><a href="#/"><span>Posts</span><b>${state.items.length}</b></a></li>
-      <li><a href="#/archive"><span>Archive</span><b>${new Set(state.items.map(i => i.timestamp.slice(0, 7))).size} mo</b></a></li>
-      <li><a href="#/likes"><span>Likes</span><b id="likeCount">${state.likes.size}</b></a></li>
+      <li><a href="#/kept"><span>Kept</span><b id="likeCount">${state.likes.size}</b></a></li>
+      <li><a href="#/archive"><span>Archive</span><b>${new Set(state.items.map(i => i.timestamp.slice(0, 7))).size} months</b></a></li>
     </ul>
   </section>
   <section>
-    <h2>Following</h2>
-    <ul class="following">${following.map(s => `<li><a href="#/stream/${s.blog}" title="${esc(s.about)}"><span class="avatar">${s.avatar}</span><span class="f-name">${esc(s.blog)}</span><span class="f-when">${ago(latest.get(s.blog))}</span></a></li>`).join('')}</ul>
+    <h2>What posts next</h2>
+    ${programme}
   </section>
-  ${radar ? `<section class="radar"><h2>Radar</h2><a href="#/post/${radar._id}"><img src="${thumbUrl(radar)}" alt="${esc(radar.title || radar.alt || 'A photo post from the archive')}" loading="lazy"><span>${esc(radar._stream.blog)}, ${shortDate(radar._date)}</span></a></section>` : ''}
   <section>
-    <h2>Theme</h2>
-    <div class="themes" role="radiogroup" aria-label="Theme">${THEMES.map(t => `<button type="button" role="radio" aria-checked="${t.id === theme}" data-theme-id="${t.id}"><i style="background:${t.color}"></i>${t.label}</button>`).join('')}</div>
+    <h2>Show one kind of post</h2>
+    <nav class="typebar" id="typebar" aria-label="Filter by kind of post"></nav>
   </section>
-  <p class="colophon">The keys <kbd>J</kbd> and <kbd>K</kbd> move between posts, <kbd>L</kbd> likes one, and <kbd>/</kbd> opens search.</p>`;
+  ${radar ? `<section class="radar"><h2>Pulled from the archive</h2><a href="#/post/${radar._id}"><img src="${thumbUrl(radar)}" alt="${esc(radar.title || radar.alt || 'A photo post from the archive')}" loading="lazy"><span>${esc(radar._stream.name)}, ${shortDate(radar._date)}</span></a></section>` : ''}
+  <section>
+    <h2>Light</h2>
+    <div class="themes" role="radiogroup" aria-label="Light">${LIGHTS.map(t => `<button type="button" role="radio" aria-checked="${t.id === light}" data-light="${t.id}">${t.label}</button>`).join('')}</div>
+  </section>
+  <p class="colophon">The keys <kbd>J</kbd> and <kbd>K</kbd> move between posts, <kbd>L</kbd> keeps one, and <kbd>/</kbd> opens search.</p>`;
 }
 
 function renderTypebar(r) {
-  $('#typebar').innerHTML = Object.entries(KINDS).map(([k, v]) =>
-    `<a class="tb k-${k}" href="${r.kind === k ? '#/' : '#/type/' + k}" aria-current="${r.kind === k}"><svg viewBox="0 0 40 40" aria-hidden="true">${v.icon}</svg><span>${v.label}</span></a>`).join('');
-  $('#typebar').classList.toggle('filtering', !!r.kind);
+  const bar = $('#typebar');
+  if (!bar) return;
+  bar.innerHTML = Object.entries(KINDS).map(([k, v]) =>
+    `<a class="tb" href="${r.kind === k ? '#/' : '#/type/' + k}" aria-current="${r.kind === k}">${v.label}</a>`).join('');
 }
 
 // -------------------------------------------------------------------- view
@@ -842,6 +972,13 @@ function render() {
 function setItems(items) {
   state.items = prepare(items);
   state.byId = new Map(state.items.map(it => [it._id, it]));
+  state.days = new Map();
+  for (const it of state.items) {
+    const k = dayKey(it._date);
+    if (!state.days.has(k)) state.days.set(k, []);
+    state.days.get(k).push(it);
+  }
+  applyLight();
   renderSidebar();
   render();
 }
@@ -880,6 +1017,18 @@ async function loadFeed(first) {
 // ------------------------------------------------------------------ events
 
 postsEl.addEventListener('click', e => {
+  // A dot on a day line scrolls to its post, rendering more of the feed if
+  // the post is further down than the page has got to.
+  const go = e.target.closest('[data-go]');
+  if (go) {
+    let el = document.getElementById('p-' + go.dataset.go);
+    while (!el && state.count < state.shown.length) { appendPosts(PAGE); el = document.getElementById('p-' + go.dataset.go); }
+    if (el) {
+      el.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      el.focus({ preventScroll: true });
+    }
+    return;
+  }
   const post = e.target.closest('.post');
   if (!post) return;
   const it = state.byId.get(post.dataset.id);
@@ -891,7 +1040,7 @@ postsEl.addEventListener('click', e => {
   const copy = e.target.closest('.copy');
   if (copy) {
     const url = location.origin + location.pathname + '#/post/' + it._id;
-    const done = () => { copy.classList.add('done'); copy.title = 'Link copied'; setTimeout(() => { copy.classList.remove('done'); copy.title = 'Copy a link to this post'; }, 1600); };
+    const done = () => { copy.textContent = 'Link copied'; setTimeout(() => { copy.textContent = 'Copy link'; }, 1600); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => { location.hash = '#/post/' + it._id; });
     else location.hash = '#/post/' + it._id;
     return;
@@ -918,9 +1067,9 @@ function toggleLike(it, post) {
   store.set('noosphere.likes', [...state.likes]);
   const btn = $('.like', post);
   btn.setAttribute('aria-pressed', on);
-  btn.title = on ? 'Unlike' : 'Like';
-  if (on) { btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop'); }
-  $('.notes', post).textContent = notesLabel(it);
+  $('span', btn).textContent = on ? 'Kept' : 'Keep';
+  post.classList.toggle('kept', on);
+  post.classList.toggle('pop', on);
   const c = $('#likeCount');
   if (c) c.textContent = state.likes.size;
 }
@@ -994,22 +1143,43 @@ menuBtn.addEventListener('click', () => {
 });
 scrim.addEventListener('click', closeMenu);
 
-sidebar.addEventListener('click', e => {
-  const b = e.target.closest('[data-theme-id]');
-  if (!b) return;
-  setTheme(b.dataset.themeId);
-  sidebar.querySelectorAll('[data-theme-id]').forEach(x => x.setAttribute('aria-checked', x === b));
-});
-
-function setTheme(id) {
-  const t = THEMES.find(x => x.id === id) || THEMES[0];
-  document.documentElement.setAttribute('data-theme', t.id);
-  $('#themeColor').setAttribute('content', t.color);
-  try { localStorage.setItem('noosphere.theme', t.id); } catch (e) {}
+// Day or night. "sun" switches at the sunrise and sunset in the newest
+// weather post, and the last pair seen is kept so the next visit can choose
+// before the feed has loaded.
+function sunTimes() {
+  const wx = state.items.find(it => it.type === 'weather' && !it.echo && it.sunrise && it.sunset);
+  const rise = wx && clockMinutes(wx.sunrise), set = wx && clockMinutes(wx.sunset);
+  if (rise != null && set != null) { store.set('noosphere.sun', [rise, set]); return [rise, set]; }
+  return store.get('noosphere.sun', [390, 1080]);
 }
-setTheme(document.documentElement.getAttribute('data-theme'));
+function applyLight() {
+  const light = store.get('noosphere.light', 'sun');
+  let theme = light === 'night' ? 'night' : 'day';
+  if (light === 'sun') {
+    const [rise, set] = sunTimes();
+    const now = new Date(), m = now.getHours() * 60 + now.getMinutes();
+    theme = m >= rise && m < set ? 'day' : 'night';
+  }
+  document.documentElement.setAttribute('data-theme', theme);
+  $('#themeColor').setAttribute('content', PAGE_COLOR[theme]);
+}
+sidebar.addEventListener('click', e => {
+  const b = e.target.closest('[data-light]');
+  if (!b) return;
+  store.set('noosphere.light', b.dataset.light);
+  applyLight();
+  sidebar.querySelectorAll('[data-light]').forEach(x => x.setAttribute('aria-checked', x === b));
+});
+applyLight();
 
-// Keyboard: J and K step through posts, L likes, slash searches.
+// Once a minute the sun moves along today's line, and the light may change.
+setInterval(() => {
+  applyLight();
+  const now = new Date(), dot = $('.day.today .now');
+  if (dot) dot.style.left = ((now.getHours() * 60 + now.getMinutes()) / 1440 * 100).toFixed(2) + '%';
+}, 60 * 1000);
+
+// Keyboard: J and K step through posts, L keeps one, slash searches.
 document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const tag = (e.target.tagName || '').toLowerCase();
@@ -1040,7 +1210,6 @@ document.addEventListener('keydown', e => {
 
 // --------------------------------------------------------------------- boot
 
-$('#meAvatar').innerHTML = ME.avatar;
 renderTypebar(route());
 loadFeed(true);
 setInterval(() => loadFeed(false), 5 * 60 * 1000);

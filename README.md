@@ -8,7 +8,7 @@ Named after [Vernadsky's concept](https://en.wikipedia.org/wiki/Noosphere) of th
 
 ## What It Is
 
-Noosphere is a self-hosted feed that looks like a Tumblr dashboard from 2013 with one reader. Each stream is a Python script that behaves like a blog the dashboard follows: it posts one card a day (or a week) on its own schedule. Cards accumulate, and the site keeps the last 500.
+Noosphere is a self-hosted feed laid out as an almanac with one reader. It borrows its bones from a 2013 Tumblr dashboard (one column, seven kinds of post, tags) and adds what a feed with no people in it can have: because every stream posts at a fixed hour, the page knows the shape of a day in advance. Each stream is a Python script that posts one card a day (or a week) on its own schedule. Cards accumulate, and the site keeps the last 500.
 
 Every stream quotes a real source. The local language model has two small jobs left: it translates the Russian and corpus sentences into English (labelled as machine translation), and it proposes artist names for the music stream, which are then checked against Spotify. A card is written whether or not the model is running.
 
@@ -74,7 +74,7 @@ If no Discord credentials are found, cross-posting is silently skipped — feed 
 │        public/index.html             │
 │        PWA frontend                  │
 │        7 post types, 21 streams      │
-│        2013 dashboard theme          │
+│        almanac theme, day and night  │
 │        service worker + offline      │
 ├─────────────────────────────────────┤
 │        generators/                   │
@@ -191,12 +191,14 @@ Set up a cron job or scheduled task to run generators daily:
 
 Vanilla JS with no framework and no build step: `public/index.html`, `style.css`, `app.js` and `garden.js`.
 
-- The page is laid out like a 2013 Tumblr dashboard: a 540px post column, a square avatar beside each post, and a sidebar that lists the blogs being followed.
-- Each stream maps to one of seven post types (text, photo, quote, link, chat, audio, video). The post-type bar at the top filters the feed by type.
-- Echo cards render as reblogs. The heart under a post is a real like, kept in the browser's local storage, and a liked post shows one note.
+- The page is one column of posts with a margin beside it. Each stream has a line-drawn mark of its own, shown in the margin with the time of the post.
+- Every day has a heading with its date, its number (day 1 is the first card, 16 February 2026), the phase of the moon, and a line from midnight to midnight with a dot at the minute of each post. The band on the line is the daylight from that day's weather card.
+- Today's line also shows the posts still to come as hollow dots, the present moment as a yellow dot, and a list of what is on the way. The sidebar lists every stream by when it posts next. These times come from the `at` and `days` fields of the `STREAMS` table in `app.js`, which repeat `generators/schedule.py` and each generator's timestamp, so a schedule change has to be made in both places.
+- Each stream maps to one of seven kinds of post (text, photo, quote, link, chat, audio, video). The sidebar can filter the feed to one kind.
+- Echo cards render as returning posts, with a dashed outline in place of a solid card. "Keep" under a post turns its corner down and adds it to the Kept view, which is stored in the browser's local storage.
 - Tags come from each card's own metadata and filter the feed when clicked. There is also search, an archive grid, a random-post link and permalinks (`#/post/<id>`).
-- The keys J and K move between posts, L likes one, and / opens search.
-- Three themes share the layout: Dashboard, Pale and Midnight.
+- The keys J and K move between posts, L keeps one, and / opens search.
+- There is a day palette and a night palette. By default the page follows the sun and switches at the sunrise and sunset in the newest weather card; the sidebar can pin either one.
 - Cards written before the v2 streams still render. Their model-written commentary is shown in smaller grey type.
 
 To preview locally without uploading anything:

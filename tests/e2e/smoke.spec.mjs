@@ -71,9 +71,14 @@ test('noosphere loads without JS errors', async ({ page }) => {
     await expect(page.locator('.post')).toHaveCount(3);
     expect(await page.evaluate(() => window.__xss)).toBeUndefined();
 
-    // Liking a post gives it one note.
+    // Each day in the full feed gets a heading with a day line.
+    await expect(page.locator('.day')).toHaveCount(2);
+    await expect(page.locator('.day .dayline .dot')).toHaveCount(3);
+
+    // Keeping a post turns its corner down.
     await page.locator('.post .like').first().click();
-    await expect(page.locator('.post .notes').first()).toHaveText('1 note');
+    await expect(page.locator('.post .like').first()).toHaveText('Kept');
+    await expect(page.locator('.post').first()).toHaveClass(/kept/);
 
     const realErrors = errors.filter(e => !isExpectedError(e));
 

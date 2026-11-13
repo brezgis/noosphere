@@ -1,15 +1,15 @@
 {
   "name": "noosphere",
   "version": "1.0.0",
-  "description": "",
+  "description": "Self-hosted personal feed PWA: 17 content generator streams, no algorithms, no ads",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "test:e2e": "playwright test"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Anna Brežġis",
+  "license": "MIT",
   "dependencies": {
     "express": "^5.2.1"
   },

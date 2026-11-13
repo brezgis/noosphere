@@ -55,7 +55,7 @@ noosphere/
 
 `utils.py` includes a `_post_to_discord()` function called automatically by `write_feed()`. When a new card is written, it's formatted into a Discord message (with type-specific labels, markdown formatting, and HTML stripping) and posted to a configured channel via the Discord Bot API. Failures are caught and logged without blocking feed generation.
 
-Configuration: `NOOSPHERE_DISCORD_CHANNEL` env var for the channel ID, Discord bot token from OpenClaw config or environment.
+Configuration: `NOOSPHERE_DISCORD_CHANNEL` env var for the channel ID, Discord bot token from the `DISCORD_BOT_TOKEN` env var.
 
 ## v2 streams (November 2026)
 
@@ -149,7 +149,7 @@ The `type` field determines which card renderer the frontend uses. Required fiel
 Returns all feed items, newest first.
 
 Query params:
-- `limit` (default 200) — max items to return
+- `limit` (default 50, max 200) — max items to return
 - `before` — ISO date, only items before this timestamp
 - `type` — filter by card type
 
@@ -174,10 +174,12 @@ Key components:
 
 ## Deployment
 
-Currently deployed as:
-- systemd user service on the server
-- nginx reverse proxy with TLS (Let's Encrypt)
-- Basic auth for access control
-- Reverse SSH tunnel from server to public-facing VPS
+Production is a static export — no Express server exposed to the internet:
+
+- `export.sh` (run from cron) executes the generators, builds a static `/api/feed` JSON, and copies the frontend + feed to a VPS over SCP (the `DEPLOY_HOST` env var selects the SSH alias)
+- nginx on the VPS serves the files over HTTPS (Let's Encrypt)
+- `server.js` is kept for local development only
+
+See the "Deployment (Production)" section of the README for details.
 
 The PWA can be installed to home screen on iOS/Android/desktop.

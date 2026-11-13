@@ -3,7 +3,7 @@ on: [push, pull_request]
 
 jobs:
   python-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -13,7 +13,7 @@ jobs:
       - run: pytest -v
 
   e2e-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

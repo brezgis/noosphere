@@ -695,19 +695,15 @@ function postHTML(it) {
     ? `<ul class="tags">${it._tags.map(t => `<li><a href="#/tagged/${encodeURIComponent(t)}">#${esc(t)}</a></li>`).join('')}</ul>` : '';
   return `<article class="post k-${it._kind} s-${esc(it.type)}${r.flush ? ' flush' : ''}${it.echo ? ' returns' : ''}${kept ? ' kept' : ''}" id="p-${it._id}" data-id="${it._id}" tabindex="-1">
   <div class="margin">
-    <a class="seal" href="${streamHref}" title="${esc(s.name)}" aria-hidden="true" tabindex="-1">${s.sigil}</a>
+    <a class="mark" href="${streamHref}" title="${esc(s.name)}" aria-hidden="true" tabindex="-1">${s.sigil}</a>
     <a class="when" href="#/post/${it._id}" title="Open this post by itself">${clock(it._date)}</a>
   </div>
   <div class="card">
-    <header class="phead"><span class="seal mini">${s.sigil}</span><a class="blog" href="${streamHref}">${nameHTML(s)}</a>${returning}${src}</header>
+    <header class="phead"><span class="mini">${s.sigil}</span><a class="blog" href="${streamHref}">${nameHTML(s)}</a>${returning}<a class="when" href="#/post/${it._id}">${clock(it._date)}</a>${src}</header>
     <div class="pbody">${r.body}</div>
-    ${tags}
     <footer class="pfoot">
-      <a class="when" href="#/post/${it._id}">${shortDate(it._date)}, ${clock(it._date)}</a>
-      <span class="acts">
-        <button class="act copy" type="button">Copy link</button>
-        <button class="act like" type="button" aria-pressed="${kept}">${ICON.keep}<span>${kept ? 'Kept' : 'Keep'}</span></button>
-      </span>
+      ${tags}
+      <button class="act like" type="button" aria-pressed="${kept}">${ICON.keep}<span>${kept ? 'Kept' : 'Keep'}</span></button>
     </footer>
     <span class="ear" aria-hidden="true"></span>
   </div>
@@ -739,7 +735,7 @@ function dayLine(d, today, now) {
   if (rise != null && set != null && set > rise) {
     line += `<span class="light" style="left:${pct(rise)}%;width:${pct(set - rise)}%" title="The sun is up from ${esc(wx.sunrise)} to ${esc(wx.sunset)}"></span>`;
   }
-  line += '<span class="hr start" style="left:0">midnight</span><span class="hr" style="left:25%">6 am</span><span class="hr" style="left:50%">noon</span><span class="hr" style="left:75%">6 pm</span>';
+  line += '<span class="hr" style="left:25%">6 am</span><span class="hr" style="left:50%">noon</span><span class="hr" style="left:75%">6 pm</span>';
   for (const it of items.slice().reverse()) {
     const label = `${it._stream.name}${it.echo ? ', returning' : ''}, ${clock(it._date)}`;
     line += `<button class="dot${it.echo ? ' ret' : ''}" type="button" data-go="${it._id}" style="left:${pct(mins(it._date))}%" title="${esc(label)}" aria-label="Go to ${esc(label)}"></button>`;
@@ -754,12 +750,8 @@ function dayLine(d, today, now) {
     line += `<span class="now" style="left:${pct(mins(now))}%" title="Now"></span>`;
   }
   let html = `<div class="dayline">${line}</div>`;
-  if (today) {
-    const count = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'][coming.length] || coming.length;
-    html += coming.length
-      ? `<div class="tocome"><p>${count} more ${coming.length === 1 ? 'post is' : 'posts are'} on the way today.</p><ol>${coming.map(s =>
-          `<li><time>${clock(slot(s, d))}</time>${s.sigil}<b>${nameHTML(s)}</b><span>${esc(s.about)}</span></li>`).join('')}</ol></div>`
-      : `<div class="tocome"><p>Everything due today has arrived.</p></div>`;
+  if (today && coming.length) {
+    html += `<p class="tocome">Still to come today: ${listOf(coming.map(s => `${nameHTML(s)} at ${clock(slot(s, d))}`))}.</p>`;
   }
   return html;
 }
@@ -899,44 +891,30 @@ function renderSidebar() {
   const now = new Date();
   const next = new Map(STREAM_LIST.map(s => [s, nextPost(s, now)]));
   const streams = STREAM_LIST.slice().sort((a, b) => (next.get(a) || Infinity) - (next.get(b) || Infinity));
-  // The streams as a programme: later today, tomorrow, then the rest by day.
+  // The streams in the order they will post. Six show, the rest fold away.
   const dayStart = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const groups = [['Later today', []], ['Tomorrow', []], ['After that', []]];
-  for (const s of streams) {
+  const rows = streams.filter(s => next.get(s)).map(s => {
     const t = next.get(s);
-    if (!t) continue;
     const away = Math.round((dayStart(t) - dayStart(now)) / 864e5);
-    const when = away < 2 ? clock(t) : away < 7 ? DAYS[t.getDay()] : shortDate(t);
-    groups[Math.min(away, 2)][1].push(`<li><a href="#/stream/${s.blog}" title="${esc(s.about)}">${s.sigil}<b>${nameHTML(s)}</b><i>${when}</i></a></li>`);
-  }
-  const programme = groups.filter(g => g[1].length).map(g => `<h3>${g[0]}</h3><ul class="streams">${g[1].join('')}</ul>`).join('');
-  const pics = state.items.filter(it => it._kind === 'photo' && thumbUrl(it) && it.type !== 'typeface');
-  const radar = pics.length ? pics[Math.floor(Math.random() * pics.length)] : null;
+    const when = away === 0 ? clock(t) : away < 7 ? `${DAYS[t.getDay()].slice(0, 3)} ${clock(t)}` : shortDate(t);
+    return `<li><a href="#/stream/${s.blog}" title="${esc(s.about)}">${s.sigil}<b>${nameHTML(s)}</b><i>${when}</i></a></li>`;
+  });
   const light = store.get('noosphere.light', 'sun');
 
   $('#sidebar').innerHTML = `
-  <section class="about">
-    <p>A feed with nobody else in it. The streams below post by themselves, each at its own hour, and what they post is quoted from a real source.</p>
-    <ul class="stats">
-      <li><a href="#/"><span>Posts</span><b>${state.items.length}</b></a></li>
-      <li><a href="#/kept"><span>Kept</span><b id="likeCount">${state.likes.size}</b></a></li>
-      <li><a href="#/archive"><span>Archive</span><b>${new Set(state.items.map(i => i.timestamp.slice(0, 7))).size} months</b></a></li>
-    </ul>
-  </section>
   <section>
     <h2>What posts next</h2>
-    ${programme}
+    <ul class="streams">${rows.slice(0, 6).join('')}</ul>
+    ${rows.length > 6 ? `<details class="rest"><summary>All ${rows.length} streams</summary><ul class="streams">${rows.slice(6).join('')}</ul></details>` : ''}
   </section>
   <section>
     <h2>Show one kind of post</h2>
     <nav class="typebar" id="typebar" aria-label="Filter by kind of post"></nav>
   </section>
-  ${radar ? `<section class="radar"><h2>Pulled from the archive</h2><a href="#/post/${radar._id}"><img src="${thumbUrl(radar)}" alt="${esc(radar.title || radar.alt || 'A photo post from the archive')}" loading="lazy"><span>${esc(radar._stream.name)}, ${shortDate(radar._date)}</span></a></section>` : ''}
   <section>
     <h2>Light</h2>
     <div class="themes" role="radiogroup" aria-label="Light">${LIGHTS.map(t => `<button type="button" role="radio" aria-checked="${t.id === light}" data-light="${t.id}">${t.label}</button>`).join('')}</div>
-  </section>
-  <p class="colophon">The keys <kbd>J</kbd> and <kbd>K</kbd> move between posts, <kbd>L</kbd> keeps one, and <kbd>/</kbd> opens search.</p>`;
+  </section>`;
 }
 
 function renderTypebar(r) {
@@ -1037,15 +1015,6 @@ postsEl.addEventListener('click', e => {
   const like = e.target.closest('.like');
   if (like) { toggleLike(it, post); return; }
 
-  const copy = e.target.closest('.copy');
-  if (copy) {
-    const url = location.origin + location.pathname + '#/post/' + it._id;
-    const done = () => { copy.textContent = 'Link copied'; setTimeout(() => { copy.textContent = 'Copy link'; }, 1600); };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => { location.hash = '#/post/' + it._id; });
-    else location.hash = '#/post/' + it._id;
-    return;
-  }
-
   const play = e.target.closest('.play');
   if (play) {
     const player = play.closest('.player');
@@ -1070,8 +1039,6 @@ function toggleLike(it, post) {
   $('span', btn).textContent = on ? 'Kept' : 'Keep';
   post.classList.toggle('kept', on);
   post.classList.toggle('pop', on);
-  const c = $('#likeCount');
-  if (c) c.textContent = state.likes.size;
 }
 
 $('#newPosts').addEventListener('click', () => {
@@ -1115,8 +1082,6 @@ document.addEventListener('error', e => {
     img.outerHTML = `<span class="snip" dir="auto">${esc(it ? snippet(it) : '')}</span>`;
     return;
   }
-  const radar = img.closest('.radar');
-  if (radar) { radar.hidden = true; return; }
   const pic = img.closest('.pic');
   if (pic) { pic.classList.add('broken'); pic.removeAttribute('style'); img.remove(); pic.textContent = 'The image did not load. This link opens it at its source.'; return; }
   img.remove();
